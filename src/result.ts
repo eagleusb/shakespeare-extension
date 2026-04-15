@@ -1,5 +1,9 @@
+import { API_BASE_URL, STORAGE_KEY_API_URL } from "./config";
+
 // ─── DOM references ────────────────────────────────────────────────────────
 
+const apiUrlInput = document.getElementById("api-url") as HTMLInputElement;
+const apiSavedEl = document.getElementById("api-saved")!;
 const loadingEl = document.getElementById("loading")!;
 const errorEl = document.getElementById("error")!;
 const errorMessageEl = document.getElementById("error-message")!;
@@ -9,8 +13,10 @@ const correctedTextEl = document.getElementById("corrected-text")!;
 const suggestedTextEl = document.getElementById("suggested-text")!;
 const correctedIndicator = document.getElementById("corrected-indicator")!;
 const suggestedIndicator = document.getElementById("suggested-indicator")!;
-const copyCorrectedBtn = document.getElementById("copy-corrected-btn") as HTMLButtonElement;
-const copySuggestedBtn = document.getElementById("copy-suggested-btn") as HTMLButtonElement;
+const retryCorrectedIcon = document.getElementById("retry-corrected")!;
+const retrySuggestedIcon = document.getElementById("retry-suggested")!;
+const latencyCorrectedEl = document.getElementById("latency-corrected")!;
+const latencySuggestedEl = document.getElementById("latency-suggested")!;
 
 // ─── Section state ─────────────────────────────────────────────────────────
 
@@ -19,35 +25,45 @@ type Section = "corrected" | "suggested";
 interface SectionState {
   el: HTMLElement;
   indicator: HTMLElement;
-  copyBtn: HTMLButtonElement;
+  retryIcon: HTMLElement;
+  latencyEl: HTMLElement;
   accumulated: string;
   firstToken: boolean;
+  done: boolean;
 }
 
 const sections: Record<Section, SectionState> = {
   corrected: {
     el: correctedTextEl,
     indicator: correctedIndicator,
-    copyBtn: copyCorrectedBtn,
+    retryIcon: retryCorrectedIcon,
+    latencyEl: latencyCorrectedEl,
     accumulated: "",
     firstToken: true,
+    done: false,
   },
   suggested: {
     el: suggestedTextEl,
     indicator: suggestedIndicator,
-    copyBtn: copySuggestedBtn,
+    retryIcon: retrySuggestedIcon,
+    latencyEl: latencySuggestedEl,
     accumulated: "",
     firstToken: true,
+    done: false,
   },
 };
+
+/** Stored original text for retry requests. */
+let originalText = "";
 
 // ─── Message types from background script ──────────────────────────────────
 
 type ResultMessage =
   | { type: "start"; original: string }
   | { type: "section-start"; section: Section }
-  | { type: "stream"; section: Section; token: string }
+  | { type: "stream"; section: Section; token: string; latencyMs?: number }
   | { type: "section-done"; section: Section }
+  | { type: "section-error"; section: Section; message: string }
   | { type: "done" }
   | { type: "error"; message: string };
 
@@ -62,10 +78,13 @@ browser.runtime.onMessage.addListener((msg: ResultMessage) => {
       showSectionStart(msg.section);
       break;
     case "stream":
-      appendToken(msg.section, msg.token);
+      appendToken(msg.section, msg.token, msg.latencyMs);
       break;
     case "section-done":
       showSectionDone(msg.section);
+      break;
+    case "section-error":
+      showSectionError(msg.section, msg.message);
       break;
     case "done":
       break;
@@ -78,18 +97,29 @@ browser.runtime.onMessage.addListener((msg: ResultMessage) => {
 // ─── UI helpers ────────────────────────────────────────────────────────────
 
 function showStart(original: string): void {
+  originalText = original;
   loadingEl.style.display = "none";
   errorEl.style.display = "none";
   resultEl.style.display = "block";
 
   originalTextEl.textContent = original;
 
-  for (const state of Object.values(sections)) {
-    state.el.textContent = "";
-    state.accumulated = "";
-    state.firstToken = true;
-    state.copyBtn.disabled = true;
+  for (const section of Object.keys(sections) as Section[]) {
+    resetSection(section);
   }
+}
+
+function resetSection(section: Section): void {
+  const state = sections[section];
+  state.el.textContent = "";
+  state.el.classList.remove("section-error");
+  state.accumulated = "";
+  state.firstToken = true;
+  state.done = false;
+  state.el.classList.remove("copied");
+  state.retryIcon.classList.remove("show");
+  state.latencyEl.classList.remove("show");
+  state.latencyEl.textContent = "";
 }
 
 function showSectionStart(section: Section): void {
@@ -97,9 +127,10 @@ function showSectionStart(section: Section): void {
   state.el.textContent = "";
   state.el.appendChild(state.indicator);
   state.indicator.classList.remove("hidden");
+  state.retryIcon.classList.remove("show");
 }
 
-function appendToken(section: Section, token: string): void {
+function appendToken(section: Section, token: string, latencyMs?: number): void {
   const state = sections[section];
 
   if (state.firstToken) {
@@ -108,12 +139,35 @@ function appendToken(section: Section, token: string): void {
     state.firstToken = false;
   }
 
+  if (latencyMs !== undefined) {
+    state.latencyEl.textContent = `${latencyMs}ms`;
+    state.latencyEl.classList.add("show");
+  }
+
   state.accumulated += token;
   state.el.textContent = state.accumulated;
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
 }
 
 function showSectionDone(section: Section): void {
-  sections[section].copyBtn.disabled = false;
+  const state = sections[section];
+  state.done = true;
+  state.retryIcon.classList.remove("show");
+}
+
+function showSectionError(section: Section, message: string): void {
+  const state = sections[section];
+
+  // Hide and detach the streaming indicator
+  state.indicator.classList.add("hidden");
+  state.indicator.remove();
+
+  state.done = false;
+  state.accumulated = "";
+  state.el.textContent = message;
+  state.el.classList.add("section-error");
+  state.retryIcon.classList.add("show");
 }
 
 function showError(message: string): void {
@@ -124,34 +178,70 @@ function showError(message: string): void {
   errorMessageEl.textContent = message;
 }
 
-// ─── Copy buttons ──────────────────────────────────────────────────────────
+// ─── Click-to-copy on content boxes ────────────────────────────────────────
 
-function setupCopyButton(btn: HTMLButtonElement, label: string): void {
-  btn.addEventListener("click", async () => {
-    const text = btn.closest(".section")?.querySelector(".section-content")?.textContent;
-    if (!text) {
+function setupCopyOnDone(section: Section): void {
+  const state = sections[section];
+
+  state.el.addEventListener("click", async () => {
+    if (!state.done || state.accumulated.length === 0) {
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(text);
-      btn.textContent = "Copied!";
-      btn.classList.add("copied");
-      setTimeout(() => {
-        btn.textContent = label;
-        btn.classList.remove("copied");
-      }, 2_000);
+      await navigator.clipboard.writeText(state.accumulated);
+      state.el.classList.add("copied");
+      setTimeout(() => state.el.classList.remove("copied"), 2_000);
     } catch {
-      btn.textContent = "Copy failed";
-      setTimeout(() => {
-        btn.textContent = label;
-      }, 2_000);
+      // silently ignore clipboard failures
     }
   });
 }
 
-setupCopyButton(copyCorrectedBtn, "Copy corrected");
-setupCopyButton(copySuggestedBtn, "Copy suggested");
+setupCopyOnDone("corrected");
+setupCopyOnDone("suggested");
+
+// ─── Retry icons ───────────────────────────────────────────────────────────
+
+function setupRetryIcon(section: Section): void {
+  const state = sections[section];
+
+  state.retryIcon.addEventListener("click", () => {
+    state.el.classList.remove("section-error");
+    resetSection(section);
+    showSectionStart(section);
+
+    browser.runtime.sendMessage({
+      type: "retry",
+      section,
+      original: originalText,
+    });
+  });
+}
+
+setupRetryIcon("corrected");
+setupRetryIcon("suggested");
+
+// ─── API URL settings ──────────────────────────────────────────────────────
+
+/** Load stored API URL into the input field on popup open. */
+browser.storage.local.get(STORAGE_KEY_API_URL).then((result) => {
+  const stored = result[STORAGE_KEY_API_URL];
+  apiUrlInput.value = typeof stored === "string" && stored.length > 0
+    ? stored
+    : API_BASE_URL;
+});
+
+/** Save API URL to storage on change. */
+apiUrlInput.addEventListener("change", () => {
+  const value = apiUrlInput.value.trim();
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    browser.storage.local.set({ [STORAGE_KEY_API_URL]: value }).then(() => {
+      apiSavedEl.classList.add("show");
+      setTimeout(() => apiSavedEl.classList.remove("show"), 2_000);
+    });
+  }
+});
 
 // ─── Signal readiness to background script ─────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { API_BASE_URL, API_PARAMS, API_TIMEOUT_MS } from "./config";
+import { API_PARAMS, API_TIMEOUT_MS } from "./config";
 import type { ApiErrorResponse, ApiChatCompletionStreamChunk } from "./types/api";
 
 /** Error thrown when the API call fails for any reason (network, HTTP, malformed response). */
@@ -21,12 +21,14 @@ export class ApiError extends Error {
  *
  * @param text - Validated, non-empty input text
  * @param systemPrompt - System prompt to instruct the model
+ * @param baseUrl - API server base URL (e.g. "http://localhost:8080")
  * @yields Individual content tokens from the model's stream
  * @throws {@link ApiError} on timeout, HTTP errors, or network failures
  */
 export async function* streamCorrection(
   text: string,
   systemPrompt: string,
+  baseUrl: string,
 ): AsyncGenerator<string, void, undefined> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
@@ -34,7 +36,7 @@ export async function* streamCorrection(
   let response: Response;
 
   try {
-    response = await fetch(`${API_BASE_URL}/v1/chat/completions`, {
+    response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -57,7 +59,7 @@ export async function* streamCorrection(
     }
 
     throw new ApiError(
-      `Failed to connect to API at ${API_BASE_URL}. Is llama.cpp server running?`,
+      `Failed to connect to API at ${baseUrl}. Is llama.cpp server running?`,
       undefined,
       err,
     );
@@ -82,7 +84,7 @@ export async function* streamCorrection(
     switch (status) {
       case 404:
         throw new ApiError(
-          `API endpoint not found (404). Is llama.cpp server running at ${API_BASE_URL}?`,
+          `API endpoint not found (404). Is llama.cpp server running at ${baseUrl}?`,
           status,
         );
       case 429:

@@ -88,6 +88,45 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 8px;
+      display: inline;
+    }
+
+    .retry-icon {
+      display: none;
+      margin-left: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      color: #6c63ff;
+      vertical-align: middle;
+      transition: color 0.15s, transform 0.15s;
+    }
+
+    .retry-icon:hover {
+      color: #aaffaa;
+      transform: rotate(90deg);
+    }
+
+    .retry-icon.show {
+      display: inline;
+    }
+
+    .latency {
+      display: none;
+      margin-left: 6px;
+      font-size: 10px;
+      color: #666;
+      font-family: monospace;
+      vertical-align: middle;
+    }
+
+    .latency.show {
+      display: inline;
+    }
+
+    .section-error {
+      color: #ff8888;
+      font-size: 13px;
+      font-style: italic;
     }
 
     .section-content {
@@ -110,34 +149,25 @@
     .section-content.corrected {
       color: #aaffaa;
       border-color: #2a4a2a;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .section-content.corrected.copied {
+      border-color: #4caf50;
+      background: #1a2e1a;
     }
 
     .section-content.suggested {
       color: #aaddff;
       border-color: #2a3a5a;
-    }
-
-    .copy-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 10px;
-      padding: 8px 16px;
-      background: #6c63ff;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 500;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: border-color 0.2s, background 0.2s;
     }
 
-    .copy-btn:hover { background: #5a52e0; }
-    .copy-btn:active { background: #4a42c0; }
-
-    .copy-btn.copied {
-      background: #4caf50;
+    .section-content.suggested.copied {
+      border-color: #4caf50;
+      background: #1a2e2a;
     }
 
     /* ─── Streaming indicator (bouncing dots) ──────────────────────── */
@@ -174,9 +204,67 @@
       0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
       30% { transform: translateY(-6px); opacity: 1; }
     }
+
+    /* ─── Settings bar ─────────────────────────────────────────────── */
+
+    .settings-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #16213e;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .settings-bar label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6c63ff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .settings-bar input {
+      flex: 1;
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      padding: 4px 8px;
+      color: #e0e0e0;
+      font-size: 12px;
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .settings-bar input:focus {
+      border-color: #6c63ff;
+    }
+
+    .checkmark {
+      opacity: 0;
+      visibility: hidden;
+      color: #4caf50;
+      font-size: 16px;
+      font-weight: 700;
+      transition: opacity 0.2s, visibility 0.2s;
+    }
+
+    .checkmark.show {
+      opacity: 1;
+      visibility: visible;
+    }
   </style>
 </head>
 <body>
+  <div class="settings-bar">
+    <label for="api-url">API</label>
+    <input type="text" id="api-url" placeholder="http://localhost:8080" spellcheck="false">
+    <span id="api-saved" class="checkmark">&#10003;</span>
+  </div>
   <div id="loading">
     <div class="spinner"></div>
     <p>Correcting text...</p>
@@ -193,22 +281,28 @@
       <div class="section-content original" id="original-text"></div>
     </div>
     <div class="section">
-      <div class="section-label">Corrected</div>
+      <div class="section-header">
+        <span class="section-label">Corrected</span>
+        <span class="retry-icon" id="retry-corrected">&#8635;</span>
+        <span class="latency" id="latency-corrected"></span>
+      </div>
       <div class="section-content corrected" id="corrected-text">
         <div id="corrected-indicator" class="streaming-indicator hidden">
           <span></span><span></span><span></span>
         </div>
       </div>
-      <button type="button" class="copy-btn" id="copy-corrected-btn" disabled>Copy corrected</button>
     </div>
     <div class="section">
-      <div class="section-label">Suggested</div>
+      <div class="section-header">
+        <span class="section-label">Suggested</span>
+        <span class="retry-icon" id="retry-suggested">&#8635;</span>
+        <span class="latency" id="latency-suggested"></span>
+      </div>
       <div class="section-content suggested" id="suggested-text">
         <div id="suggested-indicator" class="streaming-indicator hidden">
           <span></span><span></span><span></span>
         </div>
       </div>
-      <button type="button" class="copy-btn" id="copy-suggested-btn" disabled>Copy suggested</button>
     </div>
   </div>
 

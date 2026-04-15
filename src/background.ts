@@ -1,12 +1,18 @@
 import { streamCorrection, ApiError } from "./api";
 import { validateInput, ValidationError } from "./validation";
-import { CORRECT_PROMPT, SUGGEST_PROMPT } from "./config";
+import { CORRECT_PROMPT, SUGGEST_PROMPT, API_BASE_URL, STORAGE_KEY_API_URL } from "./config";
 
 /** Context menu item ID. */
 const MENU_ID = "correct-with-llamacpp";
 
 /** Section identifiers for streaming responses. */
 type Section = "corrected" | "suggested";
+
+/** Maps a section to its system prompt. */
+const SECTION_PROMPTS: Record<Section, string> = {
+  corrected: CORRECT_PROMPT,
+  suggested: SUGGEST_PROMPT,
+};
 
 /**
  * Pending state for a popup window that hasn't signalled "ready" yet.
@@ -18,6 +24,15 @@ interface PendingResult {
 
 let pending: PendingResult | null = null;
 
+// ─── Storage helpers ───────────────────────────────────────────────────────
+
+/** Reads the configured API base URL from storage, falling back to the default. */
+async function getApiBaseUrl(): Promise<string> {
+  const result = await browser.storage.local.get(STORAGE_KEY_API_URL);
+  const stored = result[STORAGE_KEY_API_URL];
+  return typeof stored === "string" && stored.length > 0 ? stored : API_BASE_URL;
+}
+
 // ─── Context menu setup ────────────────────────────────────────────────────
 
 browser.runtime.onInstalled.addListener(() => {
@@ -28,13 +43,23 @@ browser.runtime.onInstalled.addListener(() => {
   });
 });
 
-// ─── Message handler (result tab readiness) ────────────────────────────────
+// ─── Message handler (result tab readiness + retry) ────────────────────────
 
-browser.runtime.onMessage.addListener((msg: { type: string }) => {
+browser.runtime.onMessage.addListener((msg: { type: string }, sender) => {
   if (msg.type === "ready") {
     if (pending) {
       pending.resolve();
     }
+    return;
+  }
+
+  if (msg.type === "retry") {
+    const retryMsg = msg as { type: "retry"; section: Section; original: string };
+    const tabId = sender.tab?.id;
+    if (!tabId) {
+      return;
+    }
+    handleRetry(tabId, retryMsg.section, retryMsg.original);
   }
 });
 
@@ -82,19 +107,43 @@ browser.contextMenus.onClicked.addListener(async (info) => {
     original: inputText,
   });
 
-  // 5. Sequential streaming: corrected first, then suggested
+  // 5. Sequential streaming with per-section error handling
+  const baseUrl = await getApiBaseUrl();
+
+  const correctedOk = await attemptStreamSection(tabId, inputText, "corrected", baseUrl);
+
+  if (correctedOk) {
+    await attemptStreamSection(tabId, inputText, "suggested", baseUrl);
+  }
+
+  await browser.tabs.sendMessage(tabId, { type: "done" });
+});
+
+// ─── Stream a single section, returning success/failure ────────────────────
+
+/**
+ * Attempts to stream a section. On success, sends `section-done`.
+ * On failure, sends `section-error` with the error message.
+ * Returns `true` if the section completed successfully.
+ */
+async function attemptStreamSection(
+  tabId: number,
+  text: string,
+  section: Section,
+  baseUrl: string,
+): Promise<boolean> {
   try {
-    await streamSection(tabId, inputText, CORRECT_PROMPT, "corrected");
-    await streamSection(tabId, inputText, SUGGEST_PROMPT, "suggested");
-    await browser.tabs.sendMessage(tabId, { type: "done" });
+    await streamSection(tabId, text, SECTION_PROMPTS[section], section, baseUrl);
+    return true;
   } catch (err: unknown) {
     const msg =
       err instanceof ApiError || err instanceof ValidationError
         ? err.message
         : "An unexpected error occurred.";
-    await browser.tabs.sendMessage(tabId, { type: "error", message: msg });
+    await browser.tabs.sendMessage(tabId, { type: "section-error", section, message: msg });
+    return false;
   }
-});
+}
 
 // ─── Stream a single section from the API ──────────────────────────────────
 
@@ -103,18 +152,33 @@ async function streamSection(
   text: string,
   systemPrompt: string,
   section: Section,
+  baseUrl: string,
 ): Promise<void> {
   await browser.tabs.sendMessage(tabId, { type: "section-start", section });
 
-  for await (const token of streamCorrection(text, systemPrompt)) {
+  const t0 = Date.now();
+  let firstToken = true;
+
+  for await (const token of streamCorrection(text, systemPrompt, baseUrl)) {
+    const latencyMs = firstToken ? Date.now() - t0 : undefined;
+    firstToken = false;
+
     await browser.tabs.sendMessage(tabId, {
       type: "stream",
       section,
       token,
+      latencyMs,
     });
   }
 
   await browser.tabs.sendMessage(tabId, { type: "section-done", section });
+}
+
+// ─── Retry handler ─────────────────────────────────────────────────────────
+
+async function handleRetry(tabId: number, section: Section, original: string): Promise<void> {
+  const baseUrl = await getApiBaseUrl();
+  await attemptStreamSection(tabId, original, section, baseUrl);
 }
 
 // ─── Helper: open popup with an error when validation fails immediately ────

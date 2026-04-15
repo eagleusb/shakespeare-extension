@@ -1,7 +1,10 @@
 import type { ApiChatCompletionRequest } from "./types/api";
 
-/** Base URL of the llama.cpp server (OpenAI-compatible API). */
+/** Default base URL of the OpenAI-compatible API server. */
 export const API_BASE_URL = "http://localhost:8080";
+
+/** Storage key for the configurable API base URL. */
+export const STORAGE_KEY_API_URL = "apiBaseUrl";
 
 /** Shared tone rules appended to every prompt. */
 const TONE_RULES = `# Tone
