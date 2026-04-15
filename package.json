@@ -1,0 +1,27 @@
+{
+  "name": "shakespeare",
+  "version": "0.1.0",
+  "description": "Correct selected text via local OpenAI compatible API",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "npm run lint && webpack --mode production",
+    "dev": "webpack --mode development --watch",
+    "lint": "eslint src/ && npx web-ext lint --source-dir dist --self-hosted --output json",
+    "package": "npm run build && cd dist && zip -r ../shakespeare.zip . -x '.*'"
+  },
+  "devDependencies": {
+    "@types/firefox-webext-browser": "^143.0.0",
+    "copy-webpack-plugin": "^14.0.0",
+    "eslint": "^10.2.0",
+    "globals": "^17.5.0",
+    "html-minimizer-webpack-plugin": "^6.0.0",
+    "ts-loader": "^9.5.7",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.58.2",
+    "web-ext": "^10.1.0",
+    "web-ext-plugin": "^2.13.0",
+    "webpack": "^5.106.1",
+    "webpack-cli": "^7.0.2"
+  }
+}
