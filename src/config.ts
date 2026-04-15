@@ -19,7 +19,7 @@ When responding, you must follow these rules:
  * Instructs the model to return only the corrected text.
  */
 export const CORRECT_PROMPT = `# Agent Guidelines
-You are an agent specialized in english grammar correction.
+You are an agent specialized in english and french grammar correction.
 Correct the grammar, spelling, and punctuation of the submitted text.
 
 # Output
@@ -32,7 +32,7 @@ ${TONE_RULES}`;
  * Instructs the model to return a better-worded version of the text.
  */
 export const SUGGEST_PROMPT = `# Agent Guidelines
-You are an agent specialized in english writing improvement.
+You are an agent specialized in english and french writing improvement.
 Rewrite the submitted text with better wording and phrasing while preserving the original meaning.
 
 # Output

@@ -2,21 +2,19 @@ import { streamCorrection, ApiError } from "./api";
 import { validateInput, ValidationError } from "./validation";
 import { CORRECT_PROMPT, SUGGEST_PROMPT, API_BASE_URL, STORAGE_KEY_API_URL } from "./config";
 
-/** Context menu item ID. */
+/** context menu item id */
 const MENU_ID = "correct-with-llamacpp";
 
-/** Section identifiers for streaming responses. */
+/** section identifiers for streaming responses */
 type Section = "corrected" | "suggested";
 
-/** Maps a section to its system prompt. */
+/** maps a section to its system prompt */
 const SECTION_PROMPTS: Record<Section, string> = {
   corrected: CORRECT_PROMPT,
   suggested: SUGGEST_PROMPT,
 };
 
-/**
- * Pending state for a popup window that hasn't signalled "ready" yet.
- */
+/** pending state for a popup window that hasn't signalled "ready" yet */
 interface PendingResult {
   tabId: number;
   resolve: () => void;
@@ -24,16 +22,16 @@ interface PendingResult {
 
 let pending: PendingResult | null = null;
 
-// ─── Storage helpers ───────────────────────────────────────────────────────
+/* storage helpers */
 
-/** Reads the configured API base URL from storage, falling back to the default. */
+/** reads the configured api base url from storage, falling back to the default */
 async function getApiBaseUrl(): Promise<string> {
   const result = await browser.storage.local.get(STORAGE_KEY_API_URL);
   const stored = result[STORAGE_KEY_API_URL];
   return typeof stored === "string" && stored.length > 0 ? stored : API_BASE_URL;
 }
 
-// ─── Context menu setup ────────────────────────────────────────────────────
+/* context menu setup */
 
 browser.runtime.onInstalled.addListener(() => {
   browser.contextMenus.create({
@@ -43,7 +41,7 @@ browser.runtime.onInstalled.addListener(() => {
   });
 });
 
-// ─── Message handler (result tab readiness + retry) ────────────────────────
+/* message handler (result tab readiness + retry) */
 
 browser.runtime.onMessage.addListener((msg: { type: string }, sender) => {
   if (msg.type === "ready") {
@@ -63,14 +61,14 @@ browser.runtime.onMessage.addListener((msg: { type: string }, sender) => {
   }
 });
 
-// ─── Context menu click handler ────────────────────────────────────────────
+/* context menu click handler */
 
 browser.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId !== MENU_ID) {
     return;
   }
 
-  // 1. Validate input
+  /* 1. validate input */
   let inputText: string;
   try {
     inputText = validateInput(info.selectionText);
@@ -80,7 +78,7 @@ browser.contextMenus.onClicked.addListener(async (info) => {
     return;
   }
 
-  // 2. Open popup immediately (shows loading spinner)
+  /* 2. open popup immediately (shows loading spinner) */
   const window = await browser.windows.create({
     type: "popup",
     url: browser.runtime.getURL("result.html"),
@@ -94,20 +92,20 @@ browser.contextMenus.onClicked.addListener(async (info) => {
   }
   const tabId = tab.id;
 
-  // 3. Wait for the result tab to signal "ready"
+  /* 3. wait for the result tab to signal "ready" */
   const readyPromise = new Promise<void>((resolve) => {
     pending = { tabId, resolve };
   });
   await readyPromise;
   pending = null;
 
-  // 4. Tell the result tab to show the original text
+  /* 4. tell the result tab to show the original text */
   await browser.tabs.sendMessage(tabId, {
     type: "start",
     original: inputText,
   });
 
-  // 5. Sequential streaming with per-section error handling
+  /* 5. sequential streaming with per-section error handling */
   const baseUrl = await getApiBaseUrl();
 
   const correctedOk = await attemptStreamSection(tabId, inputText, "corrected", baseUrl);
@@ -119,12 +117,10 @@ browser.contextMenus.onClicked.addListener(async (info) => {
   await browser.tabs.sendMessage(tabId, { type: "done" });
 });
 
-// ─── Stream a single section, returning success/failure ────────────────────
-
 /**
- * Attempts to stream a section. On success, sends `section-done`.
- * On failure, sends `section-error` with the error message.
- * Returns `true` if the section completed successfully.
+ * attempts to stream a section. on success sends section-done.
+ * on failure sends section-error with the error message.
+ * returns true if the section completed successfully.
  */
 async function attemptStreamSection(
   tabId: number,
@@ -145,8 +141,7 @@ async function attemptStreamSection(
   }
 }
 
-// ─── Stream a single section from the API ──────────────────────────────────
-
+/** stream a single section from the api, measuring ttft latency */
 async function streamSection(
   tabId: number,
   text: string,
@@ -174,15 +169,14 @@ async function streamSection(
   await browser.tabs.sendMessage(tabId, { type: "section-done", section });
 }
 
-// ─── Retry handler ─────────────────────────────────────────────────────────
+/* retry handler */
 
 async function handleRetry(tabId: number, section: Section, original: string): Promise<void> {
   const baseUrl = await getApiBaseUrl();
   await attemptStreamSection(tabId, original, section, baseUrl);
 }
 
-// ─── Helper: open popup with an error when validation fails immediately ────
-
+/** open popup with an error when validation fails immediately */
 async function openPopupWithError(message: string): Promise<void> {
   const window = await browser.windows.create({
     type: "popup",

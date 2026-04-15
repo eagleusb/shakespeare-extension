@@ -1,6 +1,6 @@
 import { API_BASE_URL, STORAGE_KEY_API_URL } from "./config";
 
-// ─── DOM references ────────────────────────────────────────────────────────
+/* dom references */
 
 const apiUrlInput = document.getElementById("api-url") as HTMLInputElement;
 const apiSavedEl = document.getElementById("api-saved")!;
@@ -18,7 +18,7 @@ const retrySuggestedIcon = document.getElementById("retry-suggested")!;
 const latencyCorrectedEl = document.getElementById("latency-corrected")!;
 const latencySuggestedEl = document.getElementById("latency-suggested")!;
 
-// ─── Section state ─────────────────────────────────────────────────────────
+/* section state */
 
 type Section = "corrected" | "suggested";
 
@@ -53,10 +53,10 @@ const sections: Record<Section, SectionState> = {
   },
 };
 
-/** Stored original text for retry requests. */
+/** stored original text for retry requests */
 let originalText = "";
 
-// ─── Message types from background script ──────────────────────────────────
+/* message types from background script */
 
 type ResultMessage =
   | { type: "start"; original: string }
@@ -67,7 +67,7 @@ type ResultMessage =
   | { type: "done" }
   | { type: "error"; message: string };
 
-// ─── Message handler ───────────────────────────────────────────────────────
+/* message handler */
 
 browser.runtime.onMessage.addListener((msg: ResultMessage) => {
   switch (msg.type) {
@@ -94,7 +94,7 @@ browser.runtime.onMessage.addListener((msg: ResultMessage) => {
   }
 });
 
-// ─── UI helpers ────────────────────────────────────────────────────────────
+/* ui helpers */
 
 function showStart(original: string): void {
   originalText = original;
@@ -159,7 +159,7 @@ function showSectionDone(section: Section): void {
 function showSectionError(section: Section, message: string): void {
   const state = sections[section];
 
-  // Hide and detach the streaming indicator
+  /* hide and detach the streaming indicator */
   state.indicator.classList.add("hidden");
   state.indicator.remove();
 
@@ -178,7 +178,7 @@ function showError(message: string): void {
   errorMessageEl.textContent = message;
 }
 
-// ─── Click-to-copy on content boxes ────────────────────────────────────────
+/* click-to-copy on content boxes */
 
 function setupCopyOnDone(section: Section): void {
   const state = sections[section];
@@ -193,7 +193,7 @@ function setupCopyOnDone(section: Section): void {
       state.el.classList.add("copied");
       setTimeout(() => state.el.classList.remove("copied"), 2_000);
     } catch {
-      // silently ignore clipboard failures
+      /* silently ignore clipboard failures */
     }
   });
 }
@@ -201,7 +201,7 @@ function setupCopyOnDone(section: Section): void {
 setupCopyOnDone("corrected");
 setupCopyOnDone("suggested");
 
-// ─── Retry icons ───────────────────────────────────────────────────────────
+/* retry icons */
 
 function setupRetryIcon(section: Section): void {
   const state = sections[section];
@@ -222,9 +222,9 @@ function setupRetryIcon(section: Section): void {
 setupRetryIcon("corrected");
 setupRetryIcon("suggested");
 
-// ─── API URL settings ──────────────────────────────────────────────────────
+/* api url settings */
 
-/** Load stored API URL into the input field on popup open. */
+/** load stored api url into the input field on popup open */
 browser.storage.local.get(STORAGE_KEY_API_URL).then((result) => {
   const stored = result[STORAGE_KEY_API_URL];
   apiUrlInput.value = typeof stored === "string" && stored.length > 0
@@ -232,7 +232,7 @@ browser.storage.local.get(STORAGE_KEY_API_URL).then((result) => {
     : API_BASE_URL;
 });
 
-/** Save API URL to storage on change. */
+/** save api url to storage on change */
 apiUrlInput.addEventListener("change", () => {
   const value = apiUrlInput.value.trim();
   if (value.startsWith("http://") || value.startsWith("https://")) {
@@ -243,6 +243,6 @@ apiUrlInput.addEventListener("change", () => {
   }
 });
 
-// ─── Signal readiness to background script ─────────────────────────────────
+/* signal readiness to background script */
 
 browser.runtime.sendMessage({ type: "ready" });

@@ -1,7 +1,7 @@
 import { API_PARAMS, API_TIMEOUT_MS } from "./config";
 import type { ApiErrorResponse, ApiChatCompletionStreamChunk } from "./types/api";
 
-/** Error thrown when the API call fails for any reason (network, HTTP, malformed response). */
+/** error thrown when the api call fails for any reason (network, http, malformed response). */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -14,16 +14,16 @@ export class ApiError extends Error {
 }
 
 /**
- * Streams a text correction request to the local llama.cpp server.
+ * streams a text correction request to the local llama.cpp server.
  *
- * Yields each token as it arrives from the SSE stream, enabling progressive
- * display in the UI without waiting for the full response.
+ * yields each token as it arrives from the sse stream, enabling progressive
+ * display in the ui without waiting for the full response.
  *
- * @param text - Validated, non-empty input text
- * @param systemPrompt - System prompt to instruct the model
- * @param baseUrl - API server base URL (e.g. "http://localhost:8080")
- * @yields Individual content tokens from the model's stream
- * @throws {@link ApiError} on timeout, HTTP errors, or network failures
+ * @param text - validated, non-empty input text
+ * @param systemPrompt - system prompt to instruct the model
+ * @param baseUrl - api server base url (e.g. "http://localhost:8080")
+ * @yields individual content tokens from the model's stream
+ * @throws {@link ApiError} on timeout, http errors, or network failures
  */
 export async function* streamCorrection(
   text: string,
@@ -65,10 +65,10 @@ export async function* streamCorrection(
     );
   }
 
-  // Connection established — clear the connect-timeout
+  /* connection established — clear the connect-timeout */
   clearTimeout(timeout);
 
-  // ─── HTTP status errors ──────────────────────────────────────────────────
+  /* http status errors */
 
   if (!response.ok) {
     const status = response.status;
@@ -103,7 +103,7 @@ export async function* streamCorrection(
     }
   }
 
-  // ─── SSE stream parsing ─────────────────────────────────────────────────
+  /* sse stream parsing */
 
   const body = response.body;
   if (!body) {
