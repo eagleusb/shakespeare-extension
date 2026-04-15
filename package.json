@@ -7,8 +7,9 @@
   "scripts": {
     "build": "npm run lint && webpack --mode production",
     "dev": "webpack --mode development --watch",
-    "lint": "eslint src/ && npx web-ext lint --source-dir dist --self-hosted --output json",
-    "package": "npm run build && cd dist && zip -r ../shakespeare.zip . -x '.*'"
+    "lint": "eslint src/",
+    "verify": "npx web-ext lint -s dist/ --output json",
+    "package": "npm run build && npm run verify && cd dist && zip -r ../shakespeare-0.1.0.zip . -x '.*'"
   },
   "devDependencies": {
     "@types/firefox-webext-browser": "^143.0.0",
