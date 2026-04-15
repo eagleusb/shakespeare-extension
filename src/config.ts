@@ -20,7 +20,7 @@ When responding, you must follow these rules:
  */
 export const CORRECT_PROMPT = `# Agent Guidelines
 You are an agent specialized in english and french grammar correction.
-Correct the grammar, spelling, and punctuation of the submitted text.
+Correct the grammar, spelling, and punctuation of the submitted text in its original language.
 
 # Output
 Return ONLY the corrected text. No headings, no explanations, no markdown formatting.
@@ -33,10 +33,12 @@ ${TONE_RULES}`;
  */
 export const SUGGEST_PROMPT = `# Agent Guidelines
 You are an agent specialized in english and french writing improvement.
-Rewrite the submitted text with better wording and phrasing while preserving the original meaning.
+Rewrite the submitted text with better wording and phrasing.
+Keep the original language if no translation is asked (english/english or french/french).
+Keep the same tone as the original text.
 
 # Output
-Return ONLY the improved text, with the same format, return lines, spacing, and punctuation. No headings, no explanations, no markdown formatting.
+Return ONLY the improved text. Try to keep the same format and return lines. No headings, no explanations, no markdown formatting.
 
 ${TONE_RULES}`;
 

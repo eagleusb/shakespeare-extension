@@ -20,7 +20,7 @@ LLAMA_LOG_VERBOSITY=3
 llama-server -hf unsloth/gemma-4-E2B-it-GGUF:Q4_K_S \
   -ngl 99 \
   --ubatch-size 512 --batch-size 2048 \
-  --ctx-size 2048 \
+  --ctx-size 4096 \
   --cache-ram 0 \
   --reasoning-budget 1024 \
   --threads 8 \
