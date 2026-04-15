@@ -1,5 +1,5 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "Shakespeare",
   "version": "0.1.0",
   "description": "Correct selected text via local OpenAI compatible API",
@@ -18,12 +18,21 @@
     "contextMenus",
     "activeTab",
     "tabs",
-    "http://localhost:8080/*"
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
     "scripts": [
       "background.js"
     ]
   },
-  "icons": {}
+  "icons": {
+    "16": "icons/shakespeare-icon.png",
+    "32": "icons/shakespeare-icon.png",
+    "48": "icons/shakespeare-icon.png",
+    "128": "icons/shakespeare-icon.png"
+  }
 }
