@@ -22,7 +22,8 @@ llama-server -hf unsloth/gemma-4-E2B-it-GGUF:Q4_K_S \
   --ubatch-size 512 --batch-size 2048 \
   --ctx-size 4096 \
   --cache-ram 0 \
-  --reasoning-budget 1024 \
+  --chat-template-kwargs '{"enable_thinking":false}' \
+  --reasoning-budget 0 \
   --threads 8 \
   --fit off \
   --device CUDA0
