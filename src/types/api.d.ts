@@ -49,6 +49,7 @@ export interface ApiChatCompletionRequest {
     tool_call_id?: string;
   }>;
   stream?: boolean;
+  stream_options?: { include_usage: boolean };
   model?: string;
   return_progress?: boolean;
   tools?: ApiChatCompletionTool[];
@@ -114,6 +115,15 @@ export interface ApiChatCompletionStreamChunk {
     };
     finish_reason?: string | null;
   }>;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+export interface ApiHealthResponse {
+  status: "ok";
 }
 
 export interface ApiErrorResponse {

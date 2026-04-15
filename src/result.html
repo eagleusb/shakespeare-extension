@@ -123,6 +123,19 @@
       display: inline;
     }
 
+    .tokens {
+      display: none;
+      margin-left: 6px;
+      font-size: 10px;
+      color: #666;
+      font-family: monospace;
+      vertical-align: middle;
+    }
+
+    .tokens.show {
+      display: inline;
+    }
+
     .section-error {
       color: #ff8888;
       font-size: 13px;
@@ -257,6 +270,57 @@
       opacity: 1;
       visibility: visible;
     }
+
+    .health-dot {
+      display: none;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      vertical-align: middle;
+    }
+
+    .health-dot.ok {
+      display: inline-block;
+      background: #4caf50;
+    }
+
+    .health-dot.fail {
+      display: inline-block;
+      background: #ff5555;
+    }
+
+    .lang-toggle {
+      display: flex;
+      margin-left: auto;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .lang-btn {
+      background: #1a1a2e;
+      border: none;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #888;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .lang-btn + .lang-btn {
+      border-left: 1px solid #2a2a4a;
+    }
+
+    .lang-btn.active {
+      background: #6c63ff;
+      color: #fff;
+    }
+
+    .lang-btn:hover:not(.active) {
+      background: #2a2a4a;
+      color: #ccc;
+    }
   </style>
 </head>
 <body>
@@ -264,6 +328,11 @@
     <label for="api-url">API</label>
     <input type="text" id="api-url" placeholder="http://localhost:8080" spellcheck="false">
     <span id="api-saved" class="checkmark">&#10003;</span>
+    <span id="health-dot" class="health-dot"></span>
+    <div class="lang-toggle">
+      <button id="lang-en" class="lang-btn active" type="button">EN</button>
+      <button id="lang-fr" class="lang-btn" type="button">FR</button>
+    </div>
   </div>
   <div id="loading">
     <div class="spinner"></div>
@@ -285,6 +354,7 @@
         <span class="section-label">Corrected</span>
         <span class="retry-icon" id="retry-corrected">&#8635;</span>
         <span class="latency" id="latency-corrected"></span>
+        <span class="tokens" id="tokens-corrected"></span>
       </div>
       <div class="section-content corrected" id="corrected-text">
         <div id="corrected-indicator" class="streaming-indicator hidden">
@@ -297,6 +367,7 @@
         <span class="section-label">Suggested</span>
         <span class="retry-icon" id="retry-suggested">&#8635;</span>
         <span class="latency" id="latency-suggested"></span>
+        <span class="tokens" id="tokens-suggested"></span>
       </div>
       <div class="section-content suggested" id="suggested-text">
         <div id="suggested-indicator" class="streaming-indicator hidden">

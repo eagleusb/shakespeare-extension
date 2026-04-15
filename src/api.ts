@@ -1,5 +1,10 @@
-import { API_PARAMS, API_TIMEOUT_MS } from "./config";
-import type { ApiErrorResponse, ApiChatCompletionStreamChunk } from "./types/api";
+import { API_PARAMS, API_TIMEOUT_MS, DEBUG } from "./config";
+import type { ApiErrorResponse, ApiChatCompletionStreamChunk, ApiHealthResponse } from "./types/api";
+
+/** metadata returned by the api after streaming completes. */
+export interface StreamResult {
+  completionTokens?: number;
+}
 
 /** error thrown when the api call fails for any reason (network, http, malformed response). */
 export class ApiError extends Error {
@@ -22,6 +27,7 @@ export class ApiError extends Error {
  * @param text - validated, non-empty input text
  * @param systemPrompt - system prompt to instruct the model
  * @param baseUrl - api server base url (e.g. "http://localhost:8080")
+ * @param result - optional object populated with metadata after streaming completes
  * @yields individual content tokens from the model's stream
  * @throws {@link ApiError} on timeout, http errors, or network failures
  */
@@ -29,6 +35,7 @@ export async function* streamCorrection(
   text: string,
   systemPrompt: string,
   baseUrl: string,
+  result?: StreamResult,
 ): AsyncGenerator<string, void, undefined> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
@@ -42,6 +49,7 @@ export async function* streamCorrection(
       body: JSON.stringify({
         ...API_PARAMS,
         stream: true,
+        stream_options: { include_usage: true },
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: text },
@@ -142,13 +150,53 @@ export async function* streamCorrection(
           continue;
         }
 
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log("[shakespeare]", chunk);
+        }
+
         const token = chunk.choices?.[0]?.delta?.content;
         if (token) {
           yield token;
+        }
+
+        if (chunk.usage && result) {
+          result.completionTokens = chunk.usage.completion_tokens;
         }
       }
     }
   } finally {
     reader.releaseLock();
+  }
+}
+
+/**
+ * checks whether the llama.cpp server is reachable and healthy.
+ *
+ * queries the `/v1/health` endpoint and returns `true` if the server
+ * responds with `{ "status": "ok" }`. returns `false` on any network
+ * error, non-200 status, or unexpected response body.
+ *
+ * @param baseUrl - api server base url (e.g. "http://localhost:8080")
+ */
+export async function checkHealth(baseUrl: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5_000);
+
+    const response = await fetch(`${baseUrl}/v1/health`, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const body = (await response.json()) as ApiHealthResponse;
+    return body.status === "ok";
+  } catch {
+    return false;
   }
 }
