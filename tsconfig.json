@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "sourceMap": false,
+    "types": ["firefox-webext-browser"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["**/node_modules", "**/dist", "**/release", "**/public", "**/.*/"]
+}
