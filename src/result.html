@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>shakespeare prose.</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #8888aa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+
+    /* ─── Loading spinner ──────────────────────────────────────────── */
+
+    #loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 0;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #333;
+      border-top-color: #6c63ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #loading p {
+      font-size: 14px;
+      color: #8888aa;
+    }
+
+    /* ─── Error display ────────────────────────────────────────────── */
+
+    #error {
+      display: none;
+      background: #3a1a1a;
+      border: 1px solid #6b2a2a;
+      border-radius: 8px;
+      padding: 16px;
+      color: #ff8888;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    #error h2 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #ff6666;
+    }
+
+    /* ─── Result display ───────────────────────────────────────────── */
+
+    #result {
+      display: none;
+    }
+
+    .section {
+      margin-bottom: 16px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6c63ff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .section-content {
+      background: #16213e;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .section-content.original {
+      color: #aaaacc;
+      text-decoration: line-through;
+      text-decoration-color: #665566;
+    }
+
+    .section-content.corrected {
+      color: #aaffaa;
+      border-color: #2a4a2a;
+    }
+
+    .section-content.suggested {
+      color: #aaddff;
+      border-color: #2a3a5a;
+    }
+
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: #6c63ff;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .copy-btn:hover { background: #5a52e0; }
+    .copy-btn:active { background: #4a42c0; }
+
+    .copy-btn.copied {
+      background: #4caf50;
+    }
+
+    /* ─── Streaming indicator (bouncing dots) ──────────────────────── */
+
+    .streaming-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 0;
+    }
+
+    .streaming-indicator.hidden {
+      display: none;
+    }
+
+    .streaming-indicator span {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #6c63ff;
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+
+    .streaming-indicator span:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .streaming-indicator span:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-6px); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Correcting text...</p>
+  </div>
+
+  <div id="error">
+    <h2>Error</h2>
+    <p id="error-message"></p>
+  </div>
+
+  <div id="result">
+    <div class="section">
+      <div class="section-label">Original</div>
+      <div class="section-content original" id="original-text"></div>
+    </div>
+    <div class="section">
+      <div class="section-label">Corrected</div>
+      <div class="section-content corrected" id="corrected-text">
+        <div id="corrected-indicator" class="streaming-indicator hidden">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+      <button type="button" class="copy-btn" id="copy-corrected-btn" disabled>Copy corrected</button>
+    </div>
+    <div class="section">
+      <div class="section-label">Suggested</div>
+      <div class="section-content suggested" id="suggested-text">
+        <div id="suggested-indicator" class="streaming-indicator hidden">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+      <button type="button" class="copy-btn" id="copy-suggested-btn" disabled>Copy suggested</button>
+    </div>
+  </div>
+
+  <script src="result.js"></script>
+</body>
+</html>
