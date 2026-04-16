@@ -30,9 +30,6 @@
     ]
   },
   "icons": {
-    "16": "icons/shakespeare-icon.png",
-    "32": "icons/shakespeare-icon.png",
-    "48": "icons/shakespeare-icon.png",
     "128": "icons/shakespeare-icon.png"
   }
 }
