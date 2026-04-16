@@ -2,7 +2,7 @@
 
 manipulate selected text from contextual menu for grammatical correction and improvement.
 
-![./assets/demo.mp4](./assets/demo.mp4)
+https://github.com/user-attachments/assets/a50a3734-835a-484f-a3fa-4595baa300c8
 
 ## quickstart
 
