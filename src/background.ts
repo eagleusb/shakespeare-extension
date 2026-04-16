@@ -25,6 +25,30 @@ interface PendingResult {
 
 let pending: PendingResult | null = null;
 
+/** tracked popup window for reuse across corrections */
+let activePopupWindowId: number | null = null;
+let activePopupTabId: number | null = null;
+
+/** tracked settings popup window for reuse */
+let activeSettingsWindowId: number | null = null;
+
+/** monotonic counter to invalidate stale stream sends */
+let streamGeneration = 0;
+
+/** abort controller for the current in-flight stream (if any) */
+let streamAbort: AbortController | null = null;
+
+/** clear popup tracking when the user closes the window */
+browser.windows.onRemoved.addListener((windowId) => {
+  if (windowId === activePopupWindowId) {
+    activePopupWindowId = null;
+    activePopupTabId = null;
+  }
+  if (windowId === activeSettingsWindowId) {
+    activeSettingsWindowId = null;
+  }
+});
+
 /* storage helpers */
 
 /** reads the configured api base url from storage, falling back to the default */
@@ -84,16 +108,62 @@ browser.runtime.onMessage.addListener((msg: { type: string }, sender, sendRespon
   }
 });
 
+/* popup lifecycle */
+
+/** reuse or create the result popup. skips the "ready" handshake for existing popups. */
+async function getOrCreatePopup(): Promise<{ tabId: number }> {
+  if (activePopupWindowId !== null && activePopupTabId !== null) {
+    try {
+      await browser.windows.get(activePopupWindowId);
+      await browser.windows.update(activePopupWindowId, { focused: true });
+      return { tabId: activePopupTabId };
+    } catch {
+      activePopupWindowId = null;
+      activePopupTabId = null;
+    }
+  }
+
+  const win = await browser.windows.create({
+    type: "popup",
+    url: browser.runtime.getURL("result.html"),
+    width: 700,
+    height: 500,
+  });
+
+  const tabId = win.tabs![0].id!;
+  activePopupWindowId = win.id!;
+  activePopupTabId = tabId;
+
+  /* wait for the new tab to signal "ready" */
+  await new Promise<void>((resolve) => {
+    pending = { tabId, resolve };
+  });
+  pending = null;
+
+  return { tabId };
+}
+
 /* context menu click handler */
 
 browser.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId === SETTINGS_MENU_ID) {
-    await browser.windows.create({
+    if (activeSettingsWindowId !== null) {
+      try {
+        await browser.windows.get(activeSettingsWindowId);
+        await browser.windows.update(activeSettingsWindowId, { focused: true });
+        return;
+      } catch {
+        activeSettingsWindowId = null;
+      }
+    }
+
+    const win = await browser.windows.create({
       type: "popup",
       url: browser.runtime.getURL("result.html?mode=settings"),
       width: 600,
       height: 200,
     });
+    activeSettingsWindowId = win.id!;
     return;
   }
 
@@ -101,38 +171,30 @@ browser.contextMenus.onClicked.addListener(async (info) => {
     return;
   }
 
-  /* 1. validate input */
+  /* 1. abort any in-flight stream and bump generation */
+  streamGeneration++;
+  const myGen = streamGeneration;
+
+  if (streamAbort) {
+    streamAbort.abort();
+  }
+  streamAbort = new AbortController();
+
+  /* 2. validate input */
   let inputText: string;
   try {
     inputText = validateInput(info.selectionText);
   } catch (err: unknown) {
     const msg = err instanceof ValidationError ? err.message : "Invalid text selection.";
-    openPopupWithError(msg);
+    openPopupWithError(msg, myGen);
     return;
   }
 
-  /* 2. open popup immediately (shows loading spinner) */
-  const window = await browser.windows.create({
-    type: "popup",
-    url: browser.runtime.getURL("result.html"),
-    width: 700,
-    height: 500,
-  });
-
-  const tab = window.tabs?.[0];
-  if (!tab?.id) {
-    return;
-  }
-  const tabId = tab.id;
-
-  /* 3. wait for the result tab to signal "ready" */
-  const readyPromise = new Promise<void>((resolve) => {
-    pending = { tabId, resolve };
-  });
-  await readyPromise;
-  pending = null;
+  /* 3. get or create popup */
+  const { tabId } = await getOrCreatePopup();
 
   /* 4. tell the result tab to show the original text */
+  if (myGen !== streamGeneration) return;
   await browser.tabs.sendMessage(tabId, {
     type: "start",
     original: inputText,
@@ -142,19 +204,28 @@ browser.contextMenus.onClicked.addListener(async (info) => {
   const baseUrl = await getApiBaseUrl();
   const language = await getLanguage();
 
-  const correctedOk = await attemptStreamSection(tabId, inputText, "corrected", baseUrl, language);
+  const correctedOk = await attemptStreamSection(
+    tabId, inputText, "corrected", baseUrl, language, myGen, streamAbort.signal,
+  );
 
-  if (correctedOk) {
-    await attemptStreamSection(tabId, inputText, "suggested", baseUrl, language);
+  if (correctedOk && myGen === streamGeneration) {
+    await attemptStreamSection(
+      tabId, inputText, "suggested", baseUrl, language, myGen, streamAbort.signal,
+    );
   }
 
-  await browser.tabs.sendMessage(tabId, { type: "done" });
+  if (myGen === streamGeneration) {
+    await browser.tabs.sendMessage(tabId, { type: "done" });
+  }
 });
 
 /**
  * attempts to stream a section. on success sends section-done.
  * on failure sends section-error with the error message.
  * returns true if the section completed successfully.
+ *
+ * @param gen - generation counter; stale sends are silently dropped
+ * @param signal - abort signal to cancel the http stream
  */
 async function attemptStreamSection(
   tabId: number,
@@ -162,12 +233,16 @@ async function attemptStreamSection(
   section: Section,
   baseUrl: string,
   language: Language,
+  gen: number,
+  signal: AbortSignal,
 ): Promise<boolean> {
   try {
     const systemPrompt = PROMPTS[language][section === "corrected" ? "correct" : "suggest"];
-    await streamSection(tabId, text, systemPrompt, section, baseUrl);
+    await streamSection(tabId, text, systemPrompt, section, baseUrl, gen, signal);
     return true;
   } catch (err: unknown) {
+    if (gen !== streamGeneration) return false;
+
     const msg =
       err instanceof ApiError || err instanceof ValidationError
         ? err.message
@@ -184,14 +259,19 @@ async function streamSection(
   systemPrompt: string,
   section: Section,
   baseUrl: string,
+  gen: number,
+  signal: AbortSignal,
 ): Promise<void> {
+  if (gen !== streamGeneration) return;
   await browser.tabs.sendMessage(tabId, { type: "section-start", section });
 
   const t0 = Date.now();
   let firstToken = true;
   const result: StreamResult = {};
 
-  for await (const token of streamCorrection(text, systemPrompt, baseUrl, result)) {
+  for await (const token of streamCorrection(text, systemPrompt, baseUrl, result, signal)) {
+    if (gen !== streamGeneration) return;
+
     const latencyMs = firstToken ? Date.now() - t0 : undefined;
     firstToken = false;
 
@@ -203,6 +283,7 @@ async function streamSection(
     });
   }
 
+  if (gen !== streamGeneration) return;
   await browser.tabs.sendMessage(tabId, {
     type: "section-done",
     section,
@@ -213,31 +294,23 @@ async function streamSection(
 /* retry handler */
 
 async function handleRetry(tabId: number, section: Section, original: string): Promise<void> {
+  streamGeneration++;
+  const myGen = streamGeneration;
+
+  if (streamAbort) {
+    streamAbort.abort();
+  }
+  streamAbort = new AbortController();
+
   const baseUrl = await getApiBaseUrl();
   const language = await getLanguage();
-  await attemptStreamSection(tabId, original, section, baseUrl, language);
+  await attemptStreamSection(tabId, original, section, baseUrl, language, myGen, streamAbort.signal);
 }
 
-/** open popup with an error when validation fails immediately */
-async function openPopupWithError(message: string): Promise<void> {
-  const window = await browser.windows.create({
-    type: "popup",
-    url: browser.runtime.getURL("result.html"),
-    width: 600,
-    height: 400,
-  });
+/** reuse or create popup to show an error when validation fails */
+async function openPopupWithError(message: string, gen: number): Promise<void> {
+  const { tabId } = await getOrCreatePopup();
 
-  const tab = window.tabs?.[0];
-  if (!tab?.id) {
-    return;
-  }
-  const tabId = tab.id;
-
-  const readyPromise = new Promise<void>((resolve) => {
-    pending = { tabId, resolve };
-  });
-  await readyPromise;
-  pending = null;
-
+  if (gen !== streamGeneration) return;
   await browser.tabs.sendMessage(tabId, { type: "error", message });
 }

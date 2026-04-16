@@ -36,8 +36,18 @@ export async function* streamCorrection(
   systemPrompt: string,
   baseUrl: string,
   result?: StreamResult,
+  externalSignal?: AbortSignal,
 ): AsyncGenerator<string, void, undefined> {
   const controller = new AbortController();
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
+  }
+
   const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   let response: Response;
