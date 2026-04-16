@@ -2,7 +2,7 @@
 
 manipulate selected text from contextual menu for grammatical correction and improvement.
 
-![./assets/demo.png](./assets/demo.png)
+![./assets/demo.mp4](./assets/demo.mp4)
 
 ## quickstart
 
