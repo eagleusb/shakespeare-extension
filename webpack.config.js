@@ -42,7 +42,10 @@ export default {
           /** Mark as minimizable so HtmlMinimizerPlugin picks it up. */
           info: { minimized: false },
         },
-        { from: "assets/shakespeare-icon.png", to: "icons/shakespeare-icon.png" },
+        {
+          from: "assets/shakespeare-icon.png",
+          to: "icons/shakespeare-icon.png",
+        },
       ],
     }),
   ],
