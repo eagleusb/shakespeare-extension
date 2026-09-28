@@ -1,6 +1,6 @@
 # Shakespeare
 
-Shakespeare is a Firefox extension that corrects and improves selected English or French text through a local OpenAI-compatible API. Select text on any page, open the context menu, and choose **shakespeare correction (selection)** to stream a corrected version and an alternative suggestion into a reusable result window.
+Shakespeare is a Firefox Manifest V3 extension that corrects and improves selected English or French text through a local OpenAI-compatible API. Select text on any page, open the context menu, and choose **shakespeare correction (selection)** to stream a corrected version and an alternative suggestion into a reusable result window.
 
 https://github.com/user-attachments/assets/a50a3734-835a-484f-a3fa-4595baa300c8
 
@@ -53,6 +53,12 @@ Use **Open settings** in the correction window or **shakespeare settings** in th
 | `npm run package` | Build and create the versioned ZIP archive |
 
 The main implementation lives in `src/background.ts` for extension orchestration, `src/api.ts` for streaming API transport, `src/config.ts` for defaults and persisted settings, and `src/result.ts`, `src/settings.ts`, and `src/sections.ts` for the correction and settings interfaces.
+
+## Publish the add-on
+
+Run `npm run package` to validate the extension and create the versioned ZIP archive. Test that archive with the [Add-on Validator](https://addons.mozilla.org/en-US/developers/addon/validate) before submission. Use the [Firefox Add-ons Developer Hub](https://addons.mozilla.org/en-US/developers/) as the main publishing entry point and follow Mozilla's [Submitting an add-on](https://extensionworkshop.com/documentation/publish/submitting-an-add-on/) documentation for the complete submission and review workflow.
+
+Keep the versions in `package.json`, `package-lock.json`, and `src/manifest.json` synchronized before packaging. The generated `dist/` directory and versioned ZIP archive are release artifacts and must not be committed.
 
 ## Privacy
 
