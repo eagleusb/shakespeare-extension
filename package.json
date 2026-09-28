@@ -1,6 +1,6 @@
 {
   "name": "shakespeare",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Correct selected text via local OpenAI compatible API",
   "type": "module",
   "private": true,
@@ -11,7 +11,7 @@
     "format:check": "biome format . --error-on-warnings",
     "lint": "biome lint . && eslint src/",
     "verify": "npx web-ext lint -s dist/ --output json",
-    "package": "npm run build && npm run verify && cd dist && zip -r ../shakespeare-0.1.0.zip . -x '.*'"
+    "package": "npm run build && npm run verify && cd dist && zip -r ../shakespeare-0.1.1.zip . -x '.*'"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
