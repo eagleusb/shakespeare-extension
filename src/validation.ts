@@ -1,7 +1,6 @@
 import { MAX_INPUT_LENGTH } from "./config";
 import type { ApiChatCompletionResponse } from "./types/api";
 
-/** Error thrown when input or output validation fails. */
 export class ValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -9,20 +8,15 @@ export class ValidationError extends Error {
   }
 }
 
-/**
- * Validates and sanitises the user-selected text before sending it to the API.
- *
- * @param text - Raw value from `info.selectionText` (may be `undefined` or any type)
- * @returns Trimmed, validated string
- * @throws {@link ValidationError} when the input is invalid
- */
 export function validateInput(text: unknown): string {
   if (typeof text !== "string") {
     throw new ValidationError("Selected text is not a valid string.");
   }
 
   if (text.includes("\0")) {
-    throw new ValidationError("Selected text contains invalid characters (null bytes).");
+    throw new ValidationError(
+      "Selected text contains invalid characters (null bytes).",
+    );
   }
 
   const trimmed = text.trim();
@@ -44,18 +38,6 @@ export function validateInput(text: unknown): string {
   return trimmed;
 }
 
-/**
- * Validates the parsed JSON response from the OpenAI-compatible chat completions endpoint.
- *
- * Expected shape:
- * ```json
- * { "choices": [{ "message": { "content": "..." } }] }
- * ```
- *
- * @param data - Parsed JSON from the API response
- * @returns The validated content string
- * @throws {@link ValidationError} when the response is malformed or empty
- */
 export function validateOutput(data: unknown): string {
   if (typeof data !== "object" || data === null) {
     throw new ValidationError("Invalid API response: expected a JSON object.");

@@ -10,14 +10,10 @@ import {
 import { initSettings } from "./settings";
 import type { Section } from "./sections";
 
-/* top-level dom references */
-
 const loadingEl = document.getElementById("loading")!;
 const errorEl = document.getElementById("error")!;
 const errorMessageEl = document.getElementById("error-message")!;
 const resultEl = document.getElementById("result")!;
-
-/* message types from background script */
 
 type ResultMessage =
   | { type: "start"; original: string }
@@ -27,8 +23,6 @@ type ResultMessage =
   | { type: "section-error"; section: Section; message: string }
   | { type: "done" }
   | { type: "error"; message: string };
-
-/* message handler */
 
 browser.runtime.onMessage.addListener((msg: ResultMessage) => {
   switch (msg.type) {
@@ -55,14 +49,16 @@ browser.runtime.onMessage.addListener((msg: ResultMessage) => {
   }
 });
 
-/* init */
-
-initSections({ loading: loadingEl, error: errorEl, result: resultEl, errorMessage: errorMessageEl });
+initSections({
+  loading: loadingEl,
+  error: errorEl,
+  result: resultEl,
+  errorMessage: errorMessageEl,
+});
 initSettings();
 
-/* settings-only mode: hide loading, skip streaming handshake */
-
-const settingsMode = new URLSearchParams(location.search).get("mode") === "settings";
+const settingsMode =
+  new URLSearchParams(location.search).get("mode") === "settings";
 
 if (settingsMode) {
   loadingEl.style.display = "none";

@@ -1,4 +1,3 @@
-/** section identifiers for streaming responses */
 export type Section = "corrected" | "suggested";
 
 export interface SectionState {
@@ -11,8 +10,6 @@ export interface SectionState {
   firstToken: boolean;
   done: boolean;
 }
-
-/* section dom references */
 
 const correctedTextEl = document.getElementById("corrected-text")!;
 const suggestedTextEl = document.getElementById("suggested-text")!;
@@ -48,21 +45,16 @@ export const sections: Record<Section, SectionState> = {
   },
 };
 
-/* injected layout refs (set by initSections) */
-
 let loadingEl!: HTMLElement;
 let errorEl!: HTMLElement;
 let resultEl!: HTMLElement;
 let errorMessageEl!: HTMLElement;
 
-/** stored original text for retry requests */
 let originalText = "";
 
 export function getOriginalText(): string {
   return originalText;
 }
-
-/* init */
 
 export interface RootRefs {
   loading: HTMLElement;
@@ -82,8 +74,6 @@ export function initSections(refs: RootRefs): void {
   setupRetryIcon("corrected");
   setupRetryIcon("suggested");
 }
-
-/* section ui helpers */
 
 export function showStart(original: string): void {
   originalText = original;
@@ -122,7 +112,11 @@ export function showSectionStart(section: Section): void {
   state.retryIcon.classList.remove("show");
 }
 
-export function appendToken(section: Section, token: string, latencyMs?: number): void {
+export function appendToken(
+  section: Section,
+  token: string,
+  latencyMs?: number,
+): void {
   const state = sections[section];
 
   if (state.firstToken) {
@@ -142,7 +136,10 @@ export function appendToken(section: Section, token: string, latencyMs?: number)
   window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
 }
 
-export function showSectionDone(section: Section, completionTokens?: number): void {
+export function showSectionDone(
+  section: Section,
+  completionTokens?: number,
+): void {
   const state = sections[section];
   state.done = true;
   state.retryIcon.classList.remove("show");
@@ -156,7 +153,6 @@ export function showSectionDone(section: Section, completionTokens?: number): vo
 export function showSectionError(section: Section, message: string): void {
   const state = sections[section];
 
-  /* hide and detach the streaming indicator */
   state.indicator.classList.add("hidden");
   state.indicator.remove();
 
@@ -175,8 +171,6 @@ export function showError(message: string): void {
   errorMessageEl.textContent = message;
 }
 
-/* click-to-copy on content boxes */
-
 function setupCopyOnDone(section: Section): void {
   const state = sections[section];
 
@@ -190,12 +184,10 @@ function setupCopyOnDone(section: Section): void {
       state.el.classList.add("copied");
       setTimeout(() => state.el.classList.remove("copied"), 2_000);
     } catch {
-      /* silently ignore clipboard failures */
+      return;
     }
   });
 }
-
-/* retry icons */
 
 function setupRetryIcon(section: Section): void {
   const state = sections[section];
