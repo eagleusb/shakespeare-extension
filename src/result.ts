@@ -1,22 +1,34 @@
+import type { Section } from "./sections";
 import {
-  initSections,
-  showStart,
-  showSectionStart,
   appendToken,
+  initSections,
+  showError,
   showSectionDone,
   showSectionError,
-  showError,
+  showSectionStart,
+  showStart,
 } from "./sections";
 import { initSettings } from "./settings";
-import type { Section } from "./sections";
 
 const loadingEl = document.getElementById("loading")!;
 const errorEl = document.getElementById("error")!;
 const errorMessageEl = document.getElementById("error-message")!;
 const resultEl = document.getElementById("result")!;
+const openSettingsButton = document.getElementById(
+  "open-settings",
+) as HTMLButtonElement;
 const settingsMode =
   new URLSearchParams(location.search).get("mode") === "settings";
 document.body.classList.toggle("settings-mode", settingsMode);
+
+openSettingsButton.addEventListener("click", async () => {
+  openSettingsButton.disabled = true;
+  try {
+    await browser.runtime.sendMessage({ type: "open-settings" });
+  } finally {
+    openSettingsButton.disabled = false;
+  }
+});
 
 type ResultMessage =
   | { type: "start"; original: string }

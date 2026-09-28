@@ -248,13 +248,17 @@
     }
 
     .api-settings {
-      display: grid;
+      display: none;
       gap: 8px;
       padding: 10px 12px;
       background: #16213e;
       border: 1px solid #2a2a4a;
       border-radius: 8px;
       margin-bottom: 16px;
+    }
+
+    .settings-mode .api-settings {
+      display: grid;
     }
 
     .api-settings-title {
@@ -551,6 +555,25 @@
       background: #2a2a4a;
       color: #ccc;
     }
+
+    .open-settings-button {
+      padding: 4px 10px;
+      background: #6c63ff;
+      border: 1px solid #6c63ff;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .open-settings-button:hover {
+      background: #7b73ff;
+    }
+
+    .settings-mode .open-settings-button {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -563,6 +586,7 @@
       <button id="lang-en" class="lang-btn active" type="button">EN</button>
       <button id="lang-fr" class="lang-btn" type="button">FR</button>
     </div>
+    <button id="open-settings" class="open-settings-button" type="button">Open settings</button>
   </div>
   <div class="api-settings">
     <div class="api-settings-title">Chat completion settings</div>

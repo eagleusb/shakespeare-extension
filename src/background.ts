@@ -1,17 +1,17 @@
-import { streamCorrection, ApiError, checkHealth } from "./api";
 import type { StreamResult } from "./api";
-import { validateInput, ValidationError } from "./validation";
+import { ApiError, checkHealth, streamCorrection } from "./api";
+import type { ApiSettings, Language } from "./config";
 import {
   API_BASE_URL,
-  STORAGE_KEY_API_URL,
-  STORAGE_KEY_API_SETTINGS,
-  STORAGE_KEY_PROMPTS,
-  STORAGE_KEY_LANGUAGE,
   DEFAULT_LANGUAGE,
   normalizeApiSettings,
   normalizePromptOverrides,
+  STORAGE_KEY_API_SETTINGS,
+  STORAGE_KEY_API_URL,
+  STORAGE_KEY_LANGUAGE,
+  STORAGE_KEY_PROMPTS,
 } from "./config";
-import type { ApiSettings, Language } from "./config";
+import { ValidationError, validateInput } from "./validation";
 
 const MENU_ID = "shakespeare-selection";
 const SETTINGS_MENU_ID = "shakespeare-settings";
@@ -86,6 +86,26 @@ async function getPromptOverrides() {
   return normalizePromptOverrides(result[STORAGE_KEY_PROMPTS]);
 }
 
+async function openSettingsWindow(): Promise<void> {
+  if (activeSettingsWindowId !== null) {
+    try {
+      await browser.windows.get(activeSettingsWindowId);
+      await browser.windows.update(activeSettingsWindowId, { focused: true });
+      return;
+    } catch {
+      activeSettingsWindowId = null;
+    }
+  }
+
+  const win = await browser.windows.create({
+    type: "popup",
+    url: browser.runtime.getURL("result.html?mode=settings"),
+    width: 900,
+    height: 760,
+  });
+  activeSettingsWindowId = win.id!;
+}
+
 browser.runtime.onInstalled.addListener(() => {
   browser.contextMenus.create({
     id: MENU_ID,
@@ -125,9 +145,18 @@ browser.runtime.onMessage.addListener(
 
     if (msg.type === "check-health") {
       const healthMsg = msg as { type: "check-health"; url: string };
-      getApiSettings()
-        .then((settings) => checkHealth(healthMsg.url, settings.apiKey))
-        .then(sendResponse);
+      void (async () => {
+        const settings = await getApiSettings();
+        sendResponse(await checkHealth(healthMsg.url, settings.apiKey));
+      })();
+      return true;
+    }
+
+    if (msg.type === "open-settings") {
+      void (async () => {
+        await openSettingsWindow();
+        sendResponse({ ok: true });
+      })();
       return true;
     }
   },
@@ -148,8 +177,8 @@ async function getOrCreatePopup(): Promise<{ tabId: number }> {
   const win = await browser.windows.create({
     type: "popup",
     url: browser.runtime.getURL("result.html"),
-    width: 700,
-    height: 500,
+    width: 900,
+    height: 760,
   });
 
   const tabId = win.tabs![0].id!;
@@ -166,23 +195,7 @@ async function getOrCreatePopup(): Promise<{ tabId: number }> {
 
 browser.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId === SETTINGS_MENU_ID) {
-    if (activeSettingsWindowId !== null) {
-      try {
-        await browser.windows.get(activeSettingsWindowId);
-        await browser.windows.update(activeSettingsWindowId, { focused: true });
-        return;
-      } catch {
-        activeSettingsWindowId = null;
-      }
-    }
-
-    const win = await browser.windows.create({
-      type: "popup",
-      url: browser.runtime.getURL("result.html?mode=settings"),
-      width: 900,
-      height: 760,
-    });
-    activeSettingsWindowId = win.id!;
+    await openSettingsWindow();
     return;
   }
 
