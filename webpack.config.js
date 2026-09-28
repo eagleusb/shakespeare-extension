@@ -1,6 +1,6 @@
-import path from "path";
 import CopyPlugin from "copy-webpack-plugin";
 import HtmlMinimizerPlugin from "html-minimizer-webpack-plugin";
+import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

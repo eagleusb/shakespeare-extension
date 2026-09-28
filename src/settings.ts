@@ -1,16 +1,16 @@
+import type { ApiSettings, Language, PromptOverrides } from "./config";
 import {
   API_BASE_URL,
   DEFAULT_API_SETTINGS,
-  PROMPTS,
+  DEFAULT_LANGUAGE,
   normalizeApiSettings,
   normalizePromptOverrides,
+  PROMPTS,
   STORAGE_KEY_API_SETTINGS,
   STORAGE_KEY_API_URL,
   STORAGE_KEY_LANGUAGE,
   STORAGE_KEY_PROMPTS,
-  DEFAULT_LANGUAGE,
 } from "./config";
-import type { ApiSettings, Language, PromptOverrides } from "./config";
 
 const apiUrlInput = document.getElementById("api-url") as HTMLInputElement;
 const apiSavedEl = document.getElementById("api-saved")!;

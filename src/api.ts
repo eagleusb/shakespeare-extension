@@ -1,13 +1,13 @@
+import type { ApiSettings } from "./config";
 import {
   API_PARAMS,
   API_TIMEOUT_MS,
   DEBUG,
   DEFAULT_API_SETTINGS,
 } from "./config";
-import type { ApiSettings } from "./config";
 import type {
-  ApiErrorResponse,
   ApiChatCompletionStreamChunk,
+  ApiErrorResponse,
   ApiHealthResponse,
   ApiModelsResponse,
 } from "./types/api";

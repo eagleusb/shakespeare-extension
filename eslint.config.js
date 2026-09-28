@@ -1,7 +1,7 @@
-import tseslint from "typescript-eslint";
-import globals from "globals";
 import { defineConfig } from "eslint/config";
 import noUnsanitized from "eslint-plugin-no-unsanitized";
+import globals from "globals";
+import tseslint from "typescript-eslint";
 
 export default defineConfig(
   {
