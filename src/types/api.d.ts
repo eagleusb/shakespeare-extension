@@ -1,7 +1,4 @@
-/**
- * Types adapted from llama.cpp upstream:
- * https://github.com/ggml-org/llama.cpp/blob/master/tools/server/webui/src/lib/types/api.d.ts
- */
+/* Adapted from llama.cpp upstream. */
 
 export interface ApiChatMessageContentPart {
   type: string;
@@ -53,12 +50,9 @@ export interface ApiChatCompletionRequest {
   model?: string;
   return_progress?: boolean;
   tools?: ApiChatCompletionTool[];
-  /** Reasoning parameters */
   reasoning_format?: string;
-  /** Generation parameters */
   temperature?: number;
   max_tokens?: number;
-  /** Sampling parameters */
   dynatemp_range?: number;
   dynatemp_exponent?: number;
   top_k?: number;
@@ -67,7 +61,6 @@ export interface ApiChatCompletionRequest {
   xtc_probability?: number;
   xtc_threshold?: number;
   typ_p?: number;
-  /** Penalty parameters */
   repeat_last_n?: number;
   repeat_penalty?: number;
   presence_penalty?: number;
@@ -76,10 +69,8 @@ export interface ApiChatCompletionRequest {
   dry_base?: number;
   dry_allowed_length?: number;
   dry_penalty_last_n?: number;
-  /** Sampler configuration */
   samplers?: string[];
   backend_sampling?: boolean;
-  /** Custom parameters (JSON string) */
   custom?: Record<string, unknown>;
   timings_per_token?: boolean;
 }
@@ -93,9 +84,13 @@ export interface ApiChatCompletionResponse {
       content: string;
       reasoning_content?: string;
       model?: string;
-      tool_calls?: Array<ApiChatCompletionToolCallDelta & {
-        function?: ApiChatCompletionToolCallFunctionDelta & { arguments?: string };
-      }>;
+      tool_calls?: Array<
+        ApiChatCompletionToolCallDelta & {
+          function?: ApiChatCompletionToolCallFunctionDelta & {
+            arguments?: string;
+          };
+        }
+      >;
     };
     finish_reason?: string | null;
   }>;
@@ -124,6 +119,15 @@ export interface ApiChatCompletionStreamChunk {
 
 export interface ApiHealthResponse {
   status: "ok";
+}
+
+export interface ApiModelsResponse {
+  object?: "list";
+  data?: Array<{
+    id: string;
+    object?: "model";
+    owned_by?: string;
+  }>;
 }
 
 export interface ApiErrorResponse {

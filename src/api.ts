@@ -1,12 +1,21 @@
-import { API_PARAMS, API_TIMEOUT_MS, DEBUG } from "./config";
-import type { ApiErrorResponse, ApiChatCompletionStreamChunk, ApiHealthResponse } from "./types/api";
+import {
+  API_PARAMS,
+  API_TIMEOUT_MS,
+  DEBUG,
+  DEFAULT_API_SETTINGS,
+} from "./config";
+import type { ApiSettings } from "./config";
+import type {
+  ApiErrorResponse,
+  ApiChatCompletionStreamChunk,
+  ApiHealthResponse,
+  ApiModelsResponse,
+} from "./types/api";
 
-/** metadata returned by the api after streaming completes. */
 export interface StreamResult {
   completionTokens?: number;
 }
 
-/** error thrown when the api call fails for any reason (network, http, malformed response). */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -18,25 +27,17 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * streams a text correction request to the local llama.cpp server.
- *
- * yields each token as it arrives from the sse stream, enabling progressive
- * display in the ui without waiting for the full response.
- *
- * @param text - validated, non-empty input text
- * @param systemPrompt - system prompt to instruct the model
- * @param baseUrl - api server base url (e.g. "http://localhost:8080")
- * @param result - optional object populated with metadata after streaming completes
- * @yields individual content tokens from the model's stream
- * @throws {@link ApiError} on timeout, http errors, or network failures
- */
+function endpointUrl(baseUrl: string, path: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}${path}`;
+}
+
 export async function* streamCorrection(
   text: string,
   systemPrompt: string,
   baseUrl: string,
   result?: StreamResult,
   externalSignal?: AbortSignal,
+  apiSettings: ApiSettings = DEFAULT_API_SETTINGS,
 ): AsyncGenerator<string, void, undefined> {
   const controller = new AbortController();
 
@@ -44,7 +45,9 @@ export async function* streamCorrection(
     if (externalSignal.aborted) {
       controller.abort();
     } else {
-      externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
+      externalSignal.addEventListener("abort", () => controller.abort(), {
+        once: true,
+      });
     }
   }
 
@@ -53,11 +56,15 @@ export async function* streamCorrection(
   let response: Response;
 
   try {
-    response = await fetch(`${baseUrl}/v1/chat/completions`, {
+    const { model, ...generationSettings } = apiSettings;
+
+    response = await fetch(endpointUrl(baseUrl, "/v1/chat/completions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...API_PARAMS,
+        ...generationSettings,
+        ...(model ? { model } : {}),
         stream: true,
         stream_options: { include_usage: true },
         messages: [
@@ -83,10 +90,7 @@ export async function* streamCorrection(
     );
   }
 
-  /* connection established — clear the connect-timeout */
   clearTimeout(timeout);
-
-  /* http status errors */
 
   if (!response.ok) {
     const status = response.status;
@@ -106,7 +110,10 @@ export async function* streamCorrection(
           status,
         );
       case 429:
-        throw new ApiError("Rate limited by the API (429). Please wait and try again.", status);
+        throw new ApiError(
+          "Rate limited by the API (429). Please wait and try again.",
+          status,
+        );
       case 502:
       case 503:
         throw new ApiError(
@@ -120,8 +127,6 @@ export async function* streamCorrection(
         throw new ApiError(`HTTP ${status}: ${detail}`, status);
     }
   }
-
-  /* sse stream parsing */
 
   const body = response.body;
   if (!body) {
@@ -180,33 +185,38 @@ export async function* streamCorrection(
   }
 }
 
-/**
- * checks whether the llama.cpp server is reachable and healthy.
- *
- * queries the `/v1/health` endpoint and returns `true` if the server
- * responds with `{ "status": "ok" }`. returns `false` on any network
- * error, non-200 status, or unexpected response body.
- *
- * @param baseUrl - api server base url (e.g. "http://localhost:8080")
- */
 export async function checkHealth(baseUrl: string): Promise<boolean> {
-  try {
+  /* llama.cpp exposes /health, while Unsloth Desktop currently exposes
+   * /v1/models but not either health endpoint. Try the standard endpoints
+   * first, then use a successful model listing as the compatibility fallback.
+   */
+  for (const path of ["/v1/health", "/health", "/v1/models"]) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5_000);
 
-    const response = await fetch(`${baseUrl}/v1/health`, {
-      signal: controller.signal,
-    });
+    try {
+      const response = await fetch(endpointUrl(baseUrl, path), {
+        signal: controller.signal,
+      });
 
-    clearTimeout(timeout);
+      if (!response.ok) {
+        continue;
+      }
 
-    if (!response.ok) {
-      return false;
+      if (path === "/v1/models") {
+        const body = (await response.json()) as ApiModelsResponse;
+        return Array.isArray(body.data);
+      }
+
+      const body = (await response.json()) as ApiHealthResponse;
+      if (body.status === "ok") {
+        return true;
+      }
+    } catch {
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const body = (await response.json()) as ApiHealthResponse;
-    return body.status === "ok";
-  } catch {
-    return false;
   }
+
+  return false;
 }

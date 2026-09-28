@@ -24,8 +24,6 @@
       margin-bottom: 16px;
     }
 
-    /* ─── Loading spinner ──────────────────────────────────────────── */
-
     #loading {
       display: flex;
       flex-direction: column;
@@ -51,8 +49,6 @@
       color: #8888aa;
     }
 
-    /* ─── Error display ────────────────────────────────────────────── */
-
     #error {
       display: none;
       background: #3a1a1a;
@@ -70,8 +66,6 @@
       margin-bottom: 8px;
       color: #ff6666;
     }
-
-    /* ─── Result display ───────────────────────────────────────────── */
 
     #result {
       display: none;
@@ -183,8 +177,6 @@
       background: #1a2e2a;
     }
 
-    /* ─── Streaming indicator (bouncing dots) ──────────────────────── */
-
     .streaming-indicator {
       display: inline-flex;
       align-items: center;
@@ -217,8 +209,6 @@
       0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
       30% { transform: translateY(-6px); opacity: 1; }
     }
-
-    /* ─── Settings bar ─────────────────────────────────────────────── */
 
     .settings-bar {
       display: flex;
@@ -255,6 +245,66 @@
 
     .settings-bar input:focus {
       border-color: #6c63ff;
+    }
+
+    .api-settings {
+      display: grid;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #16213e;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .api-settings-title {
+      color: #8888aa;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .api-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .api-setting {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .api-setting.model {
+      grid-column: 1 / -1;
+    }
+
+    .api-setting label {
+      color: #8888aa;
+      font-size: 10px;
+    }
+
+    .api-setting input {
+      width: 100%;
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      padding: 4px 6px;
+      color: #e0e0e0;
+      font-size: 11px;
+      font-family: monospace;
+      outline: none;
+    }
+
+    .api-setting input:focus {
+      border-color: #6c63ff;
+    }
+
+    .api-settings-hint {
+      color: #666;
+      font-size: 10px;
     }
 
     .checkmark {
@@ -326,13 +376,43 @@
 <body>
   <div class="settings-bar">
     <label for="api-url">API</label>
-    <input type="text" id="api-url" placeholder="http://localhost:8080" spellcheck="false">
+    <input type="text" id="api-url" placeholder="http://127.0.0.1:8888" spellcheck="false">
     <span id="api-saved" class="checkmark">&#10003;</span>
     <span id="health-dot" class="health-dot"></span>
     <div class="lang-toggle">
       <button id="lang-en" class="lang-btn active" type="button">EN</button>
       <button id="lang-fr" class="lang-btn" type="button">FR</button>
     </div>
+  </div>
+  <div class="api-settings">
+    <div class="api-settings-title">Chat completion settings</div>
+    <div class="api-settings-grid">
+      <div class="api-setting model">
+        <label for="api-model">Model (optional)</label>
+        <input type="text" id="api-model" placeholder="Use the server's loaded model" spellcheck="false">
+      </div>
+      <div class="api-setting">
+        <label for="api-temperature">Temperature</label>
+        <input type="number" id="api-temperature" min="0" max="2" step="0.05">
+      </div>
+      <div class="api-setting">
+        <label for="api-max-tokens">Max tokens</label>
+        <input type="number" id="api-max-tokens" min="1" max="32768" step="1">
+      </div>
+      <div class="api-setting">
+        <label for="api-top-p">Top P</label>
+        <input type="number" id="api-top-p" min="0" max="1" step="0.05">
+      </div>
+      <div class="api-setting">
+        <label for="api-frequency-penalty">Frequency penalty</label>
+        <input type="number" id="api-frequency-penalty" min="-2" max="2" step="0.05">
+      </div>
+      <div class="api-setting">
+        <label for="api-presence-penalty">Presence penalty</label>
+        <input type="number" id="api-presence-penalty" min="-2" max="2" step="0.05">
+      </div>
+    </div>
+    <div class="api-settings-hint">Leave Model blank to use the model already loaded by the server.</div>
   </div>
   <div id="loading">
     <div class="spinner"></div>

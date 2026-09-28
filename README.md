@@ -18,6 +18,7 @@ LLAMA_LOG_FILE=/tmp/llamacpp.log
 LLAMA_LOG_VERBOSITY=3
 
 llama-server -hf unsloth/gemma-4-E2B-it-GGUF:Q4_K_S \
+  --port 8888 \
   -ngl 99 \
   --ubatch-size 512 --batch-size 2048 \
   --ctx-size 4096 \
@@ -28,6 +29,13 @@ llama-server -hf unsloth/gemma-4-E2B-it-GGUF:Q4_K_S \
   --fit off \
   --device CUDA0
 ```
+
+The extension connects to `http://127.0.0.1:8888` by default. It omits both
+the model and authorization fields so the server can use its currently loaded
+model and keyless configuration. A different API base URL can still be entered
+in the settings bar. The settings panel also persists common chat-completion
+controls: model override, temperature, max tokens, top-p, frequency penalty,
+and presence penalty.
 
 ## disclaimer
 

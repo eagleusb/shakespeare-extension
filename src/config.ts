@@ -1,21 +1,17 @@
 import type { ApiChatCompletionRequest } from "./types/api";
 
-/** Default base URL of the OpenAI-compatible API server. */
-export const API_BASE_URL = "http://localhost:8080";
+export const API_BASE_URL = "http://127.0.0.1:8888";
 
-/** Storage key for the configurable API base URL. */
 export const STORAGE_KEY_API_URL = "apiBaseUrl";
 
-/** Supported prompt languages. */
+export const STORAGE_KEY_API_SETTINGS = "apiSettings";
+
 export type Language = "en" | "fr";
 
-/** Storage key for the selected prompt language. */
 export const STORAGE_KEY_LANGUAGE = "language";
 
-/** Default prompt language. */
 export const DEFAULT_LANGUAGE: Language = "en";
 
-/** Per-language prompts for correction and suggestion. */
 export const PROMPTS: Record<Language, { correct: string; suggest: string }> = {
   en: {
     correct: `# Agent Guidelines
@@ -78,8 +74,27 @@ Lors de ta réponse, tu dois suivre ces règles :
   },
 };
 
-/** Parameters sent to the chat completions endpoint (generation/sampling subset). */
-export const API_PARAMS: Pick<ApiChatCompletionRequest,
+export interface ApiSettings {
+  /** Blank means use the server's loaded model. */
+  model: string;
+  temperature: number;
+  max_tokens: number;
+  top_p: number;
+  frequency_penalty: number;
+  presence_penalty: number;
+}
+
+export const DEFAULT_API_SETTINGS: ApiSettings = {
+  model: "",
+  temperature: 1.0,
+  max_tokens: 2048,
+  top_p: 0.95,
+  frequency_penalty: 0.0,
+  presence_penalty: 0.0,
+};
+
+export const API_PARAMS: Pick<
+  ApiChatCompletionRequest,
   | "temperature"
   | "max_tokens"
   | "top_p"
@@ -90,22 +105,49 @@ export const API_PARAMS: Pick<ApiChatCompletionRequest,
   | "presence_penalty"
   | "stream"
 > = {
-  temperature: 1.0,
-  max_tokens: 2048,
+  temperature: DEFAULT_API_SETTINGS.temperature,
+  max_tokens: DEFAULT_API_SETTINGS.max_tokens,
   top_p: 0.95,
   top_k: 40,
   min_p: 0.01,
   repeat_penalty: 1.0,
-  frequency_penalty: 0.0,
-  presence_penalty: 0.0,
   stream: true,
 };
 
-/** Enable debug logging of llama.cpp SSE chunks in the service worker console. */
+/**
+ * Reads persisted settings without allowing malformed storage values to reach
+ * the API request. Values are also constrained to OpenAI-compatible ranges.
+ */
+export function normalizeApiSettings(value: unknown): ApiSettings {
+  const stored =
+    typeof value === "object" && value !== null
+      ? (value as Record<string, unknown>)
+      : {};
+
+  const numberValue = (
+    key: keyof Omit<ApiSettings, "model">,
+    min: number,
+    max: number,
+  ): number => {
+    const candidate = stored[key];
+    if (typeof candidate !== "number" || !Number.isFinite(candidate)) {
+      return DEFAULT_API_SETTINGS[key];
+    }
+    return Math.min(max, Math.max(min, candidate));
+  };
+
+  return {
+    model: typeof stored.model === "string" ? stored.model.trim() : "",
+    temperature: numberValue("temperature", 0, 2),
+    max_tokens: Math.round(numberValue("max_tokens", 1, 32_768)),
+    top_p: numberValue("top_p", 0, 1),
+    frequency_penalty: numberValue("frequency_penalty", -2, 2),
+    presence_penalty: numberValue("presence_penalty", -2, 2),
+  };
+}
+
 export const DEBUG = false;
 
-/** HTTP request timeout in milliseconds. */
 export const API_TIMEOUT_MS = 30_000;
 
-/** Maximum allowed input text length in characters. */
 export const MAX_INPUT_LENGTH = 10_000;

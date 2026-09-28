@@ -5,19 +5,18 @@ import {
   PROMPTS,
   API_BASE_URL,
   STORAGE_KEY_API_URL,
+  STORAGE_KEY_API_SETTINGS,
   STORAGE_KEY_LANGUAGE,
   DEFAULT_LANGUAGE,
+  normalizeApiSettings,
 } from "./config";
-import type { Language } from "./config";
+import type { ApiSettings, Language } from "./config";
 
-/** context menu item id */
 const MENU_ID = "shakespeare-selection";
 const SETTINGS_MENU_ID = "shakespeare-settings";
 
-/** section identifiers for streaming responses */
 type Section = "corrected" | "suggested";
 
-/** pending state for a popup window that hasn't signalled "ready" yet */
 interface PendingResult {
   tabId: number;
   resolve: () => void;
@@ -25,20 +24,15 @@ interface PendingResult {
 
 let pending: PendingResult | null = null;
 
-/** tracked popup window for reuse across corrections */
 let activePopupWindowId: number | null = null;
 let activePopupTabId: number | null = null;
 
-/** tracked settings popup window for reuse */
 let activeSettingsWindowId: number | null = null;
 
-/** monotonic counter to invalidate stale stream sends */
 let streamGeneration = 0;
 
-/** abort controller for the current in-flight stream (if any) */
 let streamAbort: AbortController | null = null;
 
-/** clear popup tracking when the user closes the window */
 browser.windows.onRemoved.addListener((windowId) => {
   if (windowId === activePopupWindowId) {
     activePopupWindowId = null;
@@ -49,23 +43,24 @@ browser.windows.onRemoved.addListener((windowId) => {
   }
 });
 
-/* storage helpers */
-
-/** reads the configured api base url from storage, falling back to the default */
 async function getApiBaseUrl(): Promise<string> {
   const result = await browser.storage.local.get(STORAGE_KEY_API_URL);
   const stored = result[STORAGE_KEY_API_URL];
-  return typeof stored === "string" && stored.length > 0 ? stored : API_BASE_URL;
+  return typeof stored === "string" && stored.length > 0
+    ? stored
+    : API_BASE_URL;
 }
 
-/** reads the selected prompt language from storage, falling back to the default */
 async function getLanguage(): Promise<Language> {
   const result = await browser.storage.local.get(STORAGE_KEY_LANGUAGE);
   const stored = result[STORAGE_KEY_LANGUAGE];
   return stored === "en" || stored === "fr" ? stored : DEFAULT_LANGUAGE;
 }
 
-/* context menu setup */
+async function getApiSettings(): Promise<ApiSettings> {
+  const result = await browser.storage.local.get(STORAGE_KEY_API_SETTINGS);
+  return normalizeApiSettings(result[STORAGE_KEY_API_SETTINGS]);
+}
 
 browser.runtime.onInstalled.addListener(() => {
   browser.contextMenus.create({
@@ -81,36 +76,37 @@ browser.runtime.onInstalled.addListener(() => {
   });
 });
 
-/* message handler (result tab readiness + retry) */
-
-browser.runtime.onMessage.addListener((msg: { type: string }, sender, sendResponse) => {
-  if (msg.type === "ready") {
-    if (pending) {
-      pending.resolve();
-    }
-    return;
-  }
-
-  if (msg.type === "retry") {
-    const retryMsg = msg as { type: "retry"; section: Section; original: string };
-    const tabId = sender.tab?.id;
-    if (!tabId) {
+browser.runtime.onMessage.addListener(
+  (msg: { type: string }, sender, sendResponse) => {
+    if (msg.type === "ready") {
+      if (pending) {
+        pending.resolve();
+      }
       return;
     }
-    handleRetry(tabId, retryMsg.section, retryMsg.original);
-    return;
-  }
 
-  if (msg.type === "check-health") {
-    const healthMsg = msg as { type: "check-health"; url: string };
-    checkHealth(healthMsg.url).then(sendResponse);
-    return true;
-  }
-});
+    if (msg.type === "retry") {
+      const retryMsg = msg as {
+        type: "retry";
+        section: Section;
+        original: string;
+      };
+      const tabId = sender.tab?.id;
+      if (!tabId) {
+        return;
+      }
+      handleRetry(tabId, retryMsg.section, retryMsg.original);
+      return;
+    }
 
-/* popup lifecycle */
+    if (msg.type === "check-health") {
+      const healthMsg = msg as { type: "check-health"; url: string };
+      checkHealth(healthMsg.url).then(sendResponse);
+      return true;
+    }
+  },
+);
 
-/** reuse or create the result popup. skips the "ready" handshake for existing popups. */
 async function getOrCreatePopup(): Promise<{ tabId: number }> {
   if (activePopupWindowId !== null && activePopupTabId !== null) {
     try {
@@ -134,7 +130,6 @@ async function getOrCreatePopup(): Promise<{ tabId: number }> {
   activePopupWindowId = win.id!;
   activePopupTabId = tabId;
 
-  /* wait for the new tab to signal "ready" */
   await new Promise<void>((resolve) => {
     pending = { tabId, resolve };
   });
@@ -142,8 +137,6 @@ async function getOrCreatePopup(): Promise<{ tabId: number }> {
 
   return { tabId };
 }
-
-/* context menu click handler */
 
 browser.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId === SETTINGS_MENU_ID) {
@@ -161,7 +154,7 @@ browser.contextMenus.onClicked.addListener(async (info) => {
       type: "popup",
       url: browser.runtime.getURL("result.html?mode=settings"),
       width: 600,
-      height: 200,
+      height: 360,
     });
     activeSettingsWindowId = win.id!;
     return;
@@ -171,7 +164,6 @@ browser.contextMenus.onClicked.addListener(async (info) => {
     return;
   }
 
-  /* 1. abort any in-flight stream and bump generation */
   streamGeneration++;
   const myGen = streamGeneration;
 
@@ -180,37 +172,49 @@ browser.contextMenus.onClicked.addListener(async (info) => {
   }
   streamAbort = new AbortController();
 
-  /* 2. validate input */
   let inputText: string;
   try {
     inputText = validateInput(info.selectionText);
   } catch (err: unknown) {
-    const msg = err instanceof ValidationError ? err.message : "Invalid text selection.";
+    const msg =
+      err instanceof ValidationError ? err.message : "Invalid text selection.";
     openPopupWithError(msg, myGen);
     return;
   }
 
-  /* 3. get or create popup */
   const { tabId } = await getOrCreatePopup();
 
-  /* 4. tell the result tab to show the original text */
   if (myGen !== streamGeneration) return;
   await browser.tabs.sendMessage(tabId, {
     type: "start",
     original: inputText,
   });
 
-  /* 5. sequential streaming with per-section error handling */
   const baseUrl = await getApiBaseUrl();
   const language = await getLanguage();
+  const apiSettings = await getApiSettings();
 
   const correctedOk = await attemptStreamSection(
-    tabId, inputText, "corrected", baseUrl, language, myGen, streamAbort.signal,
+    tabId,
+    inputText,
+    "corrected",
+    baseUrl,
+    language,
+    apiSettings,
+    myGen,
+    streamAbort.signal,
   );
 
   if (correctedOk && myGen === streamGeneration) {
     await attemptStreamSection(
-      tabId, inputText, "suggested", baseUrl, language, myGen, streamAbort.signal,
+      tabId,
+      inputText,
+      "suggested",
+      baseUrl,
+      language,
+      apiSettings,
+      myGen,
+      streamAbort.signal,
     );
   }
 
@@ -219,26 +223,29 @@ browser.contextMenus.onClicked.addListener(async (info) => {
   }
 });
 
-/**
- * attempts to stream a section. on success sends section-done.
- * on failure sends section-error with the error message.
- * returns true if the section completed successfully.
- *
- * @param gen - generation counter; stale sends are silently dropped
- * @param signal - abort signal to cancel the http stream
- */
 async function attemptStreamSection(
   tabId: number,
   text: string,
   section: Section,
   baseUrl: string,
   language: Language,
+  apiSettings: ApiSettings,
   gen: number,
   signal: AbortSignal,
 ): Promise<boolean> {
   try {
-    const systemPrompt = PROMPTS[language][section === "corrected" ? "correct" : "suggest"];
-    await streamSection(tabId, text, systemPrompt, section, baseUrl, gen, signal);
+    const systemPrompt =
+      PROMPTS[language][section === "corrected" ? "correct" : "suggest"];
+    await streamSection(
+      tabId,
+      text,
+      systemPrompt,
+      section,
+      baseUrl,
+      apiSettings,
+      gen,
+      signal,
+    );
     return true;
   } catch (err: unknown) {
     if (gen !== streamGeneration) return false;
@@ -247,18 +254,22 @@ async function attemptStreamSection(
       err instanceof ApiError || err instanceof ValidationError
         ? err.message
         : "An unexpected error occurred.";
-    await browser.tabs.sendMessage(tabId, { type: "section-error", section, message: msg });
+    await browser.tabs.sendMessage(tabId, {
+      type: "section-error",
+      section,
+      message: msg,
+    });
     return false;
   }
 }
 
-/** stream a single section from the api, measuring ttft latency */
 async function streamSection(
   tabId: number,
   text: string,
   systemPrompt: string,
   section: Section,
   baseUrl: string,
+  apiSettings: ApiSettings,
   gen: number,
   signal: AbortSignal,
 ): Promise<void> {
@@ -269,7 +280,14 @@ async function streamSection(
   let firstToken = true;
   const result: StreamResult = {};
 
-  for await (const token of streamCorrection(text, systemPrompt, baseUrl, result, signal)) {
+  for await (const token of streamCorrection(
+    text,
+    systemPrompt,
+    baseUrl,
+    result,
+    signal,
+    apiSettings,
+  )) {
     if (gen !== streamGeneration) return;
 
     const latencyMs = firstToken ? Date.now() - t0 : undefined;
@@ -291,9 +309,11 @@ async function streamSection(
   });
 }
 
-/* retry handler */
-
-async function handleRetry(tabId: number, section: Section, original: string): Promise<void> {
+async function handleRetry(
+  tabId: number,
+  section: Section,
+  original: string,
+): Promise<void> {
   streamGeneration++;
   const myGen = streamGeneration;
 
@@ -304,10 +324,19 @@ async function handleRetry(tabId: number, section: Section, original: string): P
 
   const baseUrl = await getApiBaseUrl();
   const language = await getLanguage();
-  await attemptStreamSection(tabId, original, section, baseUrl, language, myGen, streamAbort.signal);
+  const apiSettings = await getApiSettings();
+  await attemptStreamSection(
+    tabId,
+    original,
+    section,
+    baseUrl,
+    language,
+    apiSettings,
+    myGen,
+    streamAbort.signal,
+  );
 }
 
-/** reuse or create popup to show an error when validation fails */
 async function openPopupWithError(message: string, gen: number): Promise<void> {
   const { tabId } = await getOrCreatePopup();
 
