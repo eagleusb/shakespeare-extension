@@ -267,7 +267,7 @@
 
     .api-settings-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(10, minmax(0, 1fr));
       gap: 8px;
     }
 
@@ -278,7 +278,11 @@
     }
 
     .api-setting.model {
-      grid-column: 1 / -1;
+      grid-column: span 5;
+    }
+
+    .api-setting:not(.model) {
+      grid-column: span 2;
     }
 
     .api-setting label {
@@ -305,6 +309,182 @@
     .api-settings-hint {
       color: #666;
       font-size: 10px;
+    }
+
+    .prompt-settings {
+      display: none;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #16213e;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .settings-mode .prompt-settings {
+      display: grid;
+    }
+
+    .prompt-settings-title {
+      color: #8888aa;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .prompt-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .prompt-edit-button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+      padding: 12px;
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 6px;
+      color: #e0e0e0;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .prompt-edit-button:hover {
+      background: #20203a;
+      border-color: #6c63ff;
+    }
+
+    .prompt-edit-name {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .prompt-edit-status {
+      color: #8888aa;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    dialog {
+      width: min(760px, calc(100vw - 40px));
+      max-height: calc(100vh - 40px);
+      margin: auto;
+      padding: 0;
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 10px;
+      color: #e0e0e0;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    dialog::backdrop {
+      background: rgba(7, 7, 18, 0.75);
+    }
+
+    .prompt-dialog-form {
+      display: grid;
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .prompt-dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .prompt-dialog-header h2 {
+      font-size: 16px;
+    }
+
+    .prompt-dialog-close {
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: 1px solid #3a3a5a;
+      border-radius: 6px;
+      color: #aaaacc;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .prompt-dialog-field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .prompt-dialog-field label {
+      color: #8888aa;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    #prompt-dialog-text {
+      width: 100%;
+      min-height: 360px;
+      resize: vertical;
+      background: #111126;
+      border: 1px solid #3a3a5a;
+      border-radius: 6px;
+      padding: 12px;
+      color: #e0e0e0;
+      font: 12px/1.5 monospace;
+    }
+
+    .prompt-dialog-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .prompt-dialog-actions button {
+      padding: 8px 12px;
+      border: 1px solid #3a3a5a;
+      border-radius: 6px;
+      background: #20203a;
+      color: #e0e0e0;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .prompt-dialog-actions .use-default {
+      margin-right: auto;
+    }
+
+    .prompt-dialog-actions .primary {
+      background: #6c63ff;
+      border-color: #6c63ff;
+      color: #fff;
+    }
+
+    :where(button, input, textarea):focus-visible {
+      outline: 2px solid #a9a4ff;
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 700px) {
+      .api-settings-grid,
+      .prompt-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .api-setting,
+      .api-setting.model {
+        grid-column: span 1;
+      }
+
+      .api-setting.model {
+        grid-column: 1 / -1;
+      }
     }
 
     .checkmark {
@@ -391,6 +571,10 @@
         <label for="api-model">Model (optional)</label>
         <input type="text" id="api-model" placeholder="Use the server's loaded model" spellcheck="false">
       </div>
+      <div class="api-setting model">
+        <label for="api-key">API key (optional)</label>
+        <input type="password" id="api-key" placeholder="Leave blank for keyless APIs" autocomplete="off" spellcheck="false">
+      </div>
       <div class="api-setting">
         <label for="api-temperature">Temperature</label>
         <input type="number" id="api-temperature" min="0" max="2" step="0.05">
@@ -412,8 +596,46 @@
         <input type="number" id="api-presence-penalty" min="-2" max="2" step="0.05">
       </div>
     </div>
-    <div class="api-settings-hint">Leave Model blank to use the model already loaded by the server.</div>
+    <div class="api-settings-hint">Leave Model blank to use the server's loaded model. Add an API key when the server requires Bearer authentication.</div>
   </div>
+  <section class="prompt-settings" aria-labelledby="prompt-settings-title">
+    <h2 id="prompt-settings-title" class="prompt-settings-title">Prompt overrides</h2>
+    <div class="prompt-actions">
+      <button id="edit-prompt-en-correct" class="prompt-edit-button" type="button">
+        <span class="prompt-edit-name">English correction</span>
+        <span class="prompt-edit-status">Default prompt</span>
+      </button>
+      <button id="edit-prompt-en-suggest" class="prompt-edit-button" type="button">
+        <span class="prompt-edit-name">English suggestion</span>
+        <span class="prompt-edit-status">Default prompt</span>
+      </button>
+      <button id="edit-prompt-fr-correct" class="prompt-edit-button" type="button">
+        <span class="prompt-edit-name">French correction</span>
+        <span class="prompt-edit-status">Default prompt</span>
+      </button>
+      <button id="edit-prompt-fr-suggest" class="prompt-edit-button" type="button">
+        <span class="prompt-edit-name">French suggestion</span>
+        <span class="prompt-edit-status">Default prompt</span>
+      </button>
+    </div>
+  </section>
+  <dialog id="prompt-dialog" closedby="any" aria-labelledby="prompt-dialog-title">
+    <form id="prompt-dialog-form" class="prompt-dialog-form" method="dialog">
+      <div class="prompt-dialog-header">
+        <h2 id="prompt-dialog-title"></h2>
+        <button id="prompt-dialog-close" class="prompt-dialog-close" type="button" aria-label="Close prompt editor">&times;</button>
+      </div>
+      <div class="prompt-dialog-field">
+        <label for="prompt-dialog-text">Prompt</label>
+        <textarea id="prompt-dialog-text" spellcheck="false"></textarea>
+      </div>
+      <div class="prompt-dialog-actions">
+        <button id="prompt-use-default" class="use-default" type="button">Use default</button>
+        <button id="prompt-dialog-cancel" type="button">Cancel</button>
+        <button class="primary" type="submit">Save prompt</button>
+      </div>
+    </form>
+  </dialog>
   <div id="loading">
     <div class="spinner"></div>
     <p>Correcting text...</p>

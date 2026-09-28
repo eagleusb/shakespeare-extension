@@ -2,18 +2,37 @@ import { streamCorrection, ApiError, checkHealth } from "./api";
 import type { StreamResult } from "./api";
 import { validateInput, ValidationError } from "./validation";
 import {
-  PROMPTS,
   API_BASE_URL,
   STORAGE_KEY_API_URL,
   STORAGE_KEY_API_SETTINGS,
+  STORAGE_KEY_PROMPTS,
   STORAGE_KEY_LANGUAGE,
   DEFAULT_LANGUAGE,
   normalizeApiSettings,
+  normalizePromptOverrides,
 } from "./config";
 import type { ApiSettings, Language } from "./config";
 
 const MENU_ID = "shakespeare-selection";
 const SETTINGS_MENU_ID = "shakespeare-settings";
+const EXTENSION_ROOT = browser.runtime.getURL("");
+
+browser.webRequest.onBeforeSendHeaders.addListener(
+  (details) => {
+    if (!details.originUrl?.startsWith(EXTENSION_ROOT)) {
+      return;
+    }
+
+    return {
+      requestHeaders: details.requestHeaders?.filter((header) => {
+        const name = header.name.toLowerCase();
+        return name !== "origin" && name !== "cookie";
+      }),
+    };
+  },
+  { urls: ["http://127.0.0.1/*", "http://localhost/*"] },
+  ["blocking", "requestHeaders"],
+);
 
 type Section = "corrected" | "suggested";
 
@@ -62,6 +81,11 @@ async function getApiSettings(): Promise<ApiSettings> {
   return normalizeApiSettings(result[STORAGE_KEY_API_SETTINGS]);
 }
 
+async function getPromptOverrides() {
+  const result = await browser.storage.local.get(STORAGE_KEY_PROMPTS);
+  return normalizePromptOverrides(result[STORAGE_KEY_PROMPTS]);
+}
+
 browser.runtime.onInstalled.addListener(() => {
   browser.contextMenus.create({
     id: MENU_ID,
@@ -101,7 +125,9 @@ browser.runtime.onMessage.addListener(
 
     if (msg.type === "check-health") {
       const healthMsg = msg as { type: "check-health"; url: string };
-      checkHealth(healthMsg.url).then(sendResponse);
+      getApiSettings()
+        .then((settings) => checkHealth(healthMsg.url, settings.apiKey))
+        .then(sendResponse);
       return true;
     }
   },
@@ -153,8 +179,8 @@ browser.contextMenus.onClicked.addListener(async (info) => {
     const win = await browser.windows.create({
       type: "popup",
       url: browser.runtime.getURL("result.html?mode=settings"),
-      width: 600,
-      height: 360,
+      width: 900,
+      height: 760,
     });
     activeSettingsWindowId = win.id!;
     return;
@@ -234,8 +260,9 @@ async function attemptStreamSection(
   signal: AbortSignal,
 ): Promise<boolean> {
   try {
+    const prompts = await getPromptOverrides();
     const systemPrompt =
-      PROMPTS[language][section === "corrected" ? "correct" : "suggest"];
+      prompts[language][section === "corrected" ? "correct" : "suggest"];
     await streamSection(
       tabId,
       text,

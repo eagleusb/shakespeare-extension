@@ -14,6 +14,9 @@ const loadingEl = document.getElementById("loading")!;
 const errorEl = document.getElementById("error")!;
 const errorMessageEl = document.getElementById("error-message")!;
 const resultEl = document.getElementById("result")!;
+const settingsMode =
+  new URLSearchParams(location.search).get("mode") === "settings";
+document.body.classList.toggle("settings-mode", settingsMode);
 
 type ResultMessage =
   | { type: "start"; original: string }
@@ -56,9 +59,6 @@ initSections({
   errorMessage: errorMessageEl,
 });
 initSettings();
-
-const settingsMode =
-  new URLSearchParams(location.search).get("mode") === "settings";
 
 if (settingsMode) {
   loadingEl.style.display = "none";

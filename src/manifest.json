@@ -1,7 +1,7 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Shakespeare",
-  "version": "0.1.1",
+  "version": "0.1.5",
   "description": "Correct selected text via local OpenAI compatible API",
   "browser_specific_settings": {
     "gecko": {
@@ -18,9 +18,9 @@
     "contextMenus",
     "activeTab",
     "tabs",
-    "storage"
-  ],
-  "host_permissions": [
+    "storage",
+    "webRequest",
+    "webRequestBlocking",
     "https://*/*",
     "http://*/*"
   ],

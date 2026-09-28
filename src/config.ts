@@ -6,6 +6,8 @@ export const STORAGE_KEY_API_URL = "apiBaseUrl";
 
 export const STORAGE_KEY_API_SETTINGS = "apiSettings";
 
+export const STORAGE_KEY_PROMPTS = "promptOverrides";
+
 export type Language = "en" | "fr";
 
 export const STORAGE_KEY_LANGUAGE = "language";
@@ -74,9 +76,44 @@ Lors de ta réponse, tu dois suivre ces règles :
   },
 };
 
+export type PromptOverrides = Record<
+  Language,
+  { correct: string; suggest: string }
+>;
+
+export function normalizePromptOverrides(value: unknown): PromptOverrides {
+  const stored =
+    typeof value === "object" && value !== null
+      ? (value as Record<string, unknown>)
+      : {};
+
+  const prompt = (language: Language, kind: "correct" | "suggest"): string => {
+    const languageValue = stored[language];
+    const candidate =
+      typeof languageValue === "object" && languageValue !== null
+        ? (languageValue as Record<string, unknown>)[kind]
+        : undefined;
+    return typeof candidate === "string" && candidate.trim().length > 0
+      ? candidate
+      : PROMPTS[language][kind];
+  };
+
+  return {
+    en: {
+      correct: prompt("en", "correct"),
+      suggest: prompt("en", "suggest"),
+    },
+    fr: {
+      correct: prompt("fr", "correct"),
+      suggest: prompt("fr", "suggest"),
+    },
+  };
+}
+
 export interface ApiSettings {
   /** Blank means use the server's loaded model. */
   model: string;
+  apiKey: string;
   temperature: number;
   max_tokens: number;
   top_p: number;
@@ -86,6 +123,7 @@ export interface ApiSettings {
 
 export const DEFAULT_API_SETTINGS: ApiSettings = {
   model: "",
+  apiKey: "",
   temperature: 1.0,
   max_tokens: 2048,
   top_p: 0.95,
@@ -125,7 +163,7 @@ export function normalizeApiSettings(value: unknown): ApiSettings {
       : {};
 
   const numberValue = (
-    key: keyof Omit<ApiSettings, "model">,
+    key: keyof Omit<ApiSettings, "model" | "apiKey">,
     min: number,
     max: number,
   ): number => {
@@ -138,6 +176,7 @@ export function normalizeApiSettings(value: unknown): ApiSettings {
 
   return {
     model: typeof stored.model === "string" ? stored.model.trim() : "",
+    apiKey: typeof stored.apiKey === "string" ? stored.apiKey.trim() : "",
     temperature: numberValue("temperature", 0, 2),
     max_tokens: Math.round(numberValue("max_tokens", 1, 32_768)),
     top_p: numberValue("top_p", 0, 1),
