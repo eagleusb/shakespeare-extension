@@ -1,50 +1,63 @@
-# shakespeare-extension
+# Shakespeare
 
-manipulate selected text from contextual menu for grammatical correction and improvement.
+Shakespeare is a Firefox extension that corrects and improves selected English or French text through a local OpenAI-compatible API. Select text on any page, open the context menu, and choose **shakespeare correction (selection)** to stream a corrected version and an alternative suggestion into a reusable result window.
 
 https://github.com/user-attachments/assets/a50a3734-835a-484f-a3fa-4595baa300c8
 
-## quickstart
+## Requirements
+
+- Firefox 142 or newer.
+- Node.js and npm for development builds.
+- llama.cpp, Unsloth Desktop, or another OpenAI-compatible server exposing `/v1/chat/completions`.
+
+The default API base URL is `http://127.0.0.1:8888`. The extension omits `model` and `Authorization` when their settings are blank, allowing a keyless server to use its currently loaded model. Local requests are sent from the Firefox background page without browser origin or cookie headers, which keeps the same build compatible with llama.cpp and the Unsloth Desktop keyless API.
+
+## Install for development
 
 ```bash
-env | sort -u | grep -iP '^llama.*'
-LLAMA_ARG_CPU_MOE=true
-LLAMA_ARG_CTX_CHECKPOINTS=3
-LLAMA_ARG_DIO=true
-LLAMA_ARG_KV_UNIFIED=true
-LLAMA_ARG_PERF=false
-LLAMA_ARG_SWA_FULL=true
-LLAMA_LOG_FILE=/tmp/llamacpp.log
-LLAMA_LOG_VERBOSITY=3
-
-llama-server -hf unsloth/gemma-4-E2B-it-GGUF:Q4_K_S \
-  --port 8888 \
-  -ngl 99 \
-  --ubatch-size 512 --batch-size 2048 \
-  --ctx-size 4096 \
-  --cache-ram 0 \
-  --chat-template-kwargs '{"enable_thinking":false}' \
-  --reasoning-budget 0 \
-  --threads 8 \
-  --fit off \
-  --device CUDA0
+npm ci
+npm run build
 ```
 
-The extension connects to `http://127.0.0.1:8888` by default. It omits both
-the model and authorization fields so the server can use its currently loaded
-model and keyless configuration. If the server requires Bearer authentication,
-an API key can be entered in the settings panel. A different API base URL can
-still be entered in the settings bar. The settings panel also persists common
-chat-completion controls: model override, temperature, max tokens, top-p,
-frequency penalty, and presence penalty.
-The Firefox background page removes extension origins and browser cookies from
-localhost API requests so llama.cpp and the Unsloth Desktop keyless API receive
-the same headers as a local command-line client.
-The 900-pixel settings window exposes separate English and French correction
-and suggestion prompt overrides through focused editor dialogs.
+Open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on**, and choose `dist/manifest.json`. Rebuild and reload the temporary extension after source changes.
 
-## disclaimer
+## Start a local API
 
-- coded with an LLM, adjusted, refactored, verified by hand.
-- only my own usage in mind.
-- inspired by [https://github.com/ProtonMail/WebClients/tree/main/applications/pass-extension](https://github.com/ProtonMail/WebClients/tree/main/applications/pass-extension)
+Start an OpenAI-compatible server on port `8888`. A minimal llama.cpp example is:
+
+```bash
+llama-server \
+  -hf unsloth/gemma-4-E2B-it-GGUF:Q4_K_S \
+  --port 8888
+```
+
+For Unsloth Desktop, load a model and expose its keyless OpenAI-compatible API on the same port. Confirm that the server is reachable with:
+
+```bash
+curl http://127.0.0.1:8888/v1/models
+```
+
+## Settings
+
+Use **Open settings** in the correction window or **shakespeare settings** in the context menu. The 900-pixel settings window provides the API base URL, optional model and API key, temperature, maximum tokens, top-p, frequency penalty, and presence penalty. English and French correction and suggestion prompts can be edited in focused dialogs and restored to their defaults.
+
+## Development
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Rebuild continuously during development |
+| `npx biome check .` | Check formatting, lint rules, and import organization |
+| `npx tsc --noEmit` | Type-check without emitting files |
+| `npm run build` | Validate and create `dist/` |
+| `npm run verify` | Validate the built Firefox extension |
+| `npm run package` | Build and create the versioned ZIP archive |
+
+The main implementation lives in `src/background.ts` for extension orchestration, `src/api.ts` for streaming API transport, `src/config.ts` for defaults and persisted settings, and `src/result.ts`, `src/settings.ts`, and `src/sections.ts` for the correction and settings interfaces.
+
+## Privacy
+
+The extension does not declare telemetry or data collection. Selected text is sent only to the API base URL configured by the user, and settings are stored locally through Firefox extension storage. Review the configured endpoint before sending sensitive text.
+
+## Disclaimer
+
+This project was created with LLM assistance, then adjusted, refactored, and manually reviewed for personal use. It was inspired by the [Proton Pass extension](https://github.com/ProtonMail/WebClients/tree/main/applications/pass-extension).
