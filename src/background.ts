@@ -16,6 +16,8 @@ import { ValidationError, validateInput } from "./validation";
 const MENU_ID = "shakespeare-selection";
 const SETTINGS_MENU_ID = "shakespeare-settings";
 const EXTENSION_ROOT = browser.runtime.getURL("");
+const RESULT_URL = browser.runtime.getURL("result.html");
+const SETTINGS_URL = browser.runtime.getURL("result.html?mode=settings");
 
 browser.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
@@ -43,24 +45,27 @@ interface PendingResult {
 
 let pending: PendingResult | null = null;
 
-let activePopupWindowId: number | null = null;
-let activePopupTabId: number | null = null;
-
-let activeSettingsWindowId: number | null = null;
-
 let streamGeneration = 0;
 
 let streamAbort: AbortController | null = null;
 
-browser.windows.onRemoved.addListener((windowId) => {
-  if (windowId === activePopupWindowId) {
-    activePopupWindowId = null;
-    activePopupTabId = null;
+async function findPopup(
+  url: string,
+): Promise<{ windowId: number; tabId: number } | null> {
+  const windows = await browser.windows.getAll({
+    populate: true,
+    windowTypes: ["popup"],
+  });
+
+  for (const window of windows) {
+    const tab = window.tabs?.find((candidate) => candidate.url === url);
+    if (window.id !== undefined && tab?.id !== undefined) {
+      return { windowId: window.id, tabId: tab.id };
+    }
   }
-  if (windowId === activeSettingsWindowId) {
-    activeSettingsWindowId = null;
-  }
-});
+
+  return null;
+}
 
 async function getApiBaseUrl(): Promise<string> {
   const result = await browser.storage.local.get(STORAGE_KEY_API_URL);
@@ -87,23 +92,18 @@ async function getPromptOverrides() {
 }
 
 async function openSettingsWindow(): Promise<void> {
-  if (activeSettingsWindowId !== null) {
-    try {
-      await browser.windows.get(activeSettingsWindowId);
-      await browser.windows.update(activeSettingsWindowId, { focused: true });
-      return;
-    } catch {
-      activeSettingsWindowId = null;
-    }
+  const existing = await findPopup(SETTINGS_URL);
+  if (existing) {
+    await browser.windows.update(existing.windowId, { focused: true });
+    return;
   }
 
-  const win = await browser.windows.create({
+  await browser.windows.create({
     type: "popup",
-    url: browser.runtime.getURL("result.html?mode=settings"),
+    url: SETTINGS_URL,
     width: 900,
     height: 760,
   });
-  activeSettingsWindowId = win.id!;
 }
 
 browser.runtime.onInstalled.addListener(() => {
@@ -123,7 +123,7 @@ browser.runtime.onInstalled.addListener(() => {
 browser.runtime.onMessage.addListener(
   (msg: { type: string }, sender, sendResponse) => {
     if (msg.type === "ready") {
-      if (pending) {
+      if (pending && sender.tab?.id === pending.tabId) {
         pending.resolve();
       }
       return;
@@ -163,27 +163,20 @@ browser.runtime.onMessage.addListener(
 );
 
 async function getOrCreatePopup(): Promise<{ tabId: number }> {
-  if (activePopupWindowId !== null && activePopupTabId !== null) {
-    try {
-      await browser.windows.get(activePopupWindowId);
-      await browser.windows.update(activePopupWindowId, { focused: true });
-      return { tabId: activePopupTabId };
-    } catch {
-      activePopupWindowId = null;
-      activePopupTabId = null;
-    }
+  const existing = await findPopup(RESULT_URL);
+  if (existing) {
+    await browser.windows.update(existing.windowId, { focused: true });
+    return { tabId: existing.tabId };
   }
 
   const win = await browser.windows.create({
     type: "popup",
-    url: browser.runtime.getURL("result.html"),
+    url: RESULT_URL,
     width: 900,
     height: 760,
   });
 
   const tabId = win.tabs![0].id!;
-  activePopupWindowId = win.id!;
-  activePopupTabId = tabId;
 
   await new Promise<void>((resolve) => {
     pending = { tabId, resolve };
