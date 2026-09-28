@@ -32,10 +32,16 @@ llama-server -hf unsloth/gemma-4-E2B-it-GGUF:Q4_K_S \
 
 The extension connects to `http://127.0.0.1:8888` by default. It omits both
 the model and authorization fields so the server can use its currently loaded
-model and keyless configuration. A different API base URL can still be entered
-in the settings bar. The settings panel also persists common chat-completion
-controls: model override, temperature, max tokens, top-p, frequency penalty,
-and presence penalty.
+model and keyless configuration. If the server requires Bearer authentication,
+an API key can be entered in the settings panel. A different API base URL can
+still be entered in the settings bar. The settings panel also persists common
+chat-completion controls: model override, temperature, max tokens, top-p,
+frequency penalty, and presence penalty.
+The Firefox background page removes extension origins and browser cookies from
+localhost API requests so llama.cpp and the Unsloth Desktop keyless API receive
+the same headers as a local command-line client.
+The 900-pixel settings window exposes separate English and French correction
+and suggestion prompt overrides through focused editor dialogs.
 
 ## disclaimer
 
