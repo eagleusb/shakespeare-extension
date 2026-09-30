@@ -21,6 +21,7 @@
 - Comment only non-obvious compatibility, safety, or protocol behavior. Do not comment trivial code or restate identifiers.
 - Use Bun for package management and scripts. Commit `bun.lock`; do not add npm lockfiles.
 - Validate TypeScript with Biome's linter and formatter.
+- Prefer installed tools through `bun run`; use `bunx` only when a tool is unavailable locally.
 
 ## Bun commands
 
@@ -31,7 +32,7 @@
 
 ## Validation and artifacts
 
-- After changes, run `bunx biome check .`, `bunx tsc --noEmit`, `bun run build`, and `bun run verify`. Run `bun run package` after these checks pass.
+- After changes, run `bun run check`, `bun run typecheck`, `bun run build`, and `bun run verify`. Run `bun run package` after these checks pass.
 - `bun run package` rebuilds, verifies, and writes a versioned ZIP to `artifacts/`. CI performs validation and packaging on pushes and pull requests, then uploads the ZIP as a workflow artifact.
 - Use `bun run format` only for intentional formatting changes. Keep `dist/` and `artifacts/` uncommitted and preserve unrelated worktree changes.
 

@@ -46,8 +46,8 @@ Use **Open settings** in the correction window or **shakespeare settings** in th
 | Command | Purpose |
 | --- | --- |
 | `bun run dev` | Rebuild continuously during development |
-| `bunx biome check .` | Check formatting, lint rules, and import organization |
-| `bunx tsc --noEmit` | Type-check without emitting files |
+| `bun run check` | Check formatting, lint rules, and import organization |
+| `bun run typecheck` | Type-check without emitting files |
 | `bun run build` | Validate and create `dist/` |
 | `bun run verify` | Validate the built Firefox extension |
 | `bun run package` | Build, verify, and create `artifacts/shakespeare-<version>.zip` |
