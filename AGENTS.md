@@ -1,5 +1,7 @@
 # Agent Instructions
 
+- Keep this file under 300 lines. Use concise, actionable bullets.
+
 ## Project
 
 - Shakespeare is a Firefox Manifest V3 extension for Firefox 142 and newer. It sends selected text to an OpenAI-compatible chat-completions API and streams corrections and suggestions.
@@ -20,6 +22,7 @@
 - Do not store credentials in source, fixtures, documentation, or commits.
 - Comment only non-obvious compatibility, safety, or protocol behavior. Do not comment trivial code or restate identifiers.
 - Use Bun for package management and scripts. Commit `bun.lock`; do not add npm lockfiles.
+- When adding a dependency, verify its latest release and use that version.
 - Validate TypeScript with Biome's linter and formatter.
 - Prefer installed tools through `bun run`; use `bunx` only when a tool is unavailable locally.
 
@@ -38,8 +41,12 @@
 
 ## Commits
 
-- Use Conventional Commits in the form `type(scope): description`, with an imperative subject under 72 characters and no final period.
-- Split changes into commits by scope, then push them.
+- Use Conventional Commits in the form `type(scope): description`, with an imperative subject of at most 110 characters and no final period.
+- When committing, split changes by scope and push after all scoped commits.
+
+## GitHub Actions
+
+- When creating or updating workflows, verify each action's latest release and use that version.
 
 ## Publishing
 
