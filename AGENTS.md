@@ -1,7 +1,5 @@
 # Agent Instructions
 
-- Keep this file under 300 lines. Use concise, actionable bullets.
-
 ## Project
 
 - Shakespeare is a Firefox Manifest V3 extension for Firefox 142 and newer. It sends selected text to an OpenAI-compatible chat-completions API and streams corrections and suggestions.
@@ -21,34 +19,13 @@
 - Use TypeScript and existing browser APIs. Add no runtime dependencies unless needed.
 - Do not store credentials in source, fixtures, documentation, or commits.
 - Comment only non-obvious compatibility, safety, or protocol behavior. Do not comment trivial code or restate identifiers.
-- Use Bun for package management and scripts. Commit `bun.lock`; do not add npm lockfiles.
-- When adding a dependency, verify its latest release and use that version.
-- Validate TypeScript with Biome's linter and formatter.
-- Prefer installed tools through `bun run`; use `bunx` only when a tool is unavailable locally.
-
-## Bun commands
-
-- Run Bun inside the sandbox with its default temporary directory. If that fails, use a unique sandbox-writable directory and clean only that directory afterward.
-- Use unique names for temporary files created by scripts and clean only files and directories those scripts create. Never delete `/tmp` or another broad path.
-- Run throwaway TypeScript or JavaScript inline with `bun - <<'EOF'`; do not create temporary script files.
-- Prefer Bun for scripting. If complex shell code is necessary, use Bash and check shell scripts with ShellCheck.
+- Commit `bun.lock`; do not add npm lockfiles.
 
 ## Validation and artifacts
 
 - After changes, run `bun run check`, `bun run typecheck`, `bun run build`, and `bun run verify`. Run `bun run package` after these checks pass.
 - `bun run package` rebuilds, verifies, and writes a versioned ZIP to `artifacts/`. CI performs validation and packaging on pushes and pull requests, then uploads the ZIP as a workflow artifact.
 - Use `bun run format` only for intentional formatting changes. Keep `dist/` and `artifacts/` uncommitted and preserve unrelated worktree changes.
-
-## Commits
-
-- Use Conventional Commits in the form `type(scope): description`, with an imperative subject of at most 110 characters and no final period.
-- Prefer lowercase commit messages.
-- When committing, split changes by scope and push after all scoped commits.
-
-## GitHub Actions
-
-- When creating or updating workflows, verify each action's latest release and use that version.
-- Validate GitHub Actions workflows with `actionlint`.
 
 ## Publishing
 
