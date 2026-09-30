@@ -1,9 +1,30 @@
+import { execFileSync } from "node:child_process";
 import CopyPlugin from "copy-webpack-plugin";
 import HtmlMinimizerPlugin from "html-minimizer-webpack-plugin";
 import path from "path";
 import { fileURLToPath } from "url";
+import webpack from "webpack";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function getCommitVersion() {
+  try {
+    const options = { cwd: __dirname, encoding: "utf8" };
+    const commit = execFileSync(
+      "git",
+      ["rev-parse", "--short=7", "HEAD"],
+      options,
+    ).trim();
+    const dirty = execFileSync(
+      "git",
+      ["status", "--porcelain"],
+      options,
+    ).trim();
+    return `${commit}${dirty ? "-dirty" : ""}`;
+  } catch {
+    return "unknown";
+  }
+}
 
 export default {
   entry: {
@@ -33,6 +54,9 @@ export default {
     ],
   },
   plugins: [
+    new webpack.DefinePlugin({
+      __EXTENSION_COMMIT__: JSON.stringify(getCommitVersion()),
+    }),
     new CopyPlugin({
       patterns: [
         { from: "src/manifest.json", to: "manifest.json" },

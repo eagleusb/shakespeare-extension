@@ -12,6 +12,8 @@ import {
   STORAGE_KEY_PROMPTS,
 } from "./config";
 
+declare const __EXTENSION_COMMIT__: string;
+
 const apiUrlInput = document.getElementById("api-url") as HTMLInputElement;
 const apiSavedEl = document.getElementById("api-saved")!;
 const healthDotEl = document.getElementById("health-dot")!;
@@ -32,6 +34,7 @@ const frequencyPenaltyInput = document.getElementById(
 const presencePenaltyInput = document.getElementById(
   "api-presence-penalty",
 ) as HTMLInputElement;
+const extensionVersionEl = document.getElementById("extension-version")!;
 type PromptKind = "correct" | "suggest";
 
 const promptButtons: Record<Language, Record<PromptKind, HTMLButtonElement>> = {
@@ -190,6 +193,7 @@ async function loadSettings(): Promise<void> {
 }
 
 export function initSettings(): void {
+  extensionVersionEl.textContent = `${browser.runtime.getManifest().version} (${__EXTENSION_COMMIT__})`;
   void loadSettings();
 
   apiUrlInput.addEventListener("change", async () => {

@@ -329,6 +329,17 @@
       display: grid;
     }
 
+    .extension-version {
+      display: none;
+      color: #8888aa;
+      font-size: 11px;
+      text-align: right;
+    }
+
+    .settings-mode .extension-version {
+      display: block;
+    }
+
     .prompt-settings-title {
       color: #8888aa;
       font-size: 10px;
@@ -643,6 +654,7 @@
       </button>
     </div>
   </section>
+  <footer class="extension-version">Shakespeare version <span id="extension-version"></span></footer>
   <dialog id="prompt-dialog" closedby="any" aria-labelledby="prompt-dialog-title">
     <form id="prompt-dialog-form" class="prompt-dialog-form" method="dialog">
       <div class="prompt-dialog-header">
