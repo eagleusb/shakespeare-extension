@@ -16,12 +16,21 @@ import { ValidationError, validateInput } from "./validation";
 const MENU_ID = "shakespeare-selection";
 const SETTINGS_MENU_ID = "shakespeare-settings";
 const EXTENSION_ROOT = browser.runtime.getURL("");
+const EXTENSION_ORIGIN = EXTENSION_ROOT.replace(/\/$/, "");
 const RESULT_URL = browser.runtime.getURL("result.html");
 const SETTINGS_URL = browser.runtime.getURL("result.html?mode=settings");
 
 browser.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
-    if (!details.originUrl?.startsWith(EXTENSION_ROOT)) {
+    const sourceUrl = details.originUrl ?? details.documentUrl;
+    const originHeader = details.requestHeaders?.find(
+      (header) => header.name.toLowerCase() === "origin",
+    );
+
+    if (
+      !sourceUrl?.startsWith(EXTENSION_ROOT) &&
+      originHeader?.value !== EXTENSION_ORIGIN
+    ) {
       return;
     }
 
