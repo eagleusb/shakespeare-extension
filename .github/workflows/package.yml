@@ -19,8 +19,8 @@ jobs:
         shell: bash
         run: |
           bun ci
-          bunx biome check .
-          bunx tsc --noEmit
+          bun run check
+          bun run typecheck
           bun run build
           bun run verify
           bun run package
