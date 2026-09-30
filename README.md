@@ -7,7 +7,7 @@ https://github.com/user-attachments/assets/a50a3734-835a-484f-a3fa-4595baa300c8
 ## Requirements
 
 - Firefox 142 or newer.
-- Node.js and npm for development builds.
+- Bun 1.3.11 for development builds.
 - llama.cpp, Unsloth Desktop, or another OpenAI-compatible server exposing `/v1/chat/completions`.
 
 The default API base URL is `http://127.0.0.1:8888`. The extension omits `model` and `Authorization` when their settings are blank, allowing a keyless server to use its currently loaded model. Local requests are sent from the Firefox background page without browser origin or cookie headers, which keeps the same build compatible with llama.cpp and the Unsloth Desktop keyless API.
@@ -15,8 +15,8 @@ The default API base URL is `http://127.0.0.1:8888`. The extension omits `model`
 ## Install for development
 
 ```bash
-npm ci
-npm run build
+bun ci
+bun run build
 ```
 
 Open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on**, and choose `dist/manifest.json`. Rebuild and reload the temporary extension after source changes.
@@ -39,30 +39,30 @@ curl http://127.0.0.1:8888/v1/models
 
 ## Settings
 
-Use **Open settings** in the correction window or **shakespeare settings** in the context menu. The 900-pixel settings window provides the API base URL, optional model and API key, temperature, maximum tokens, top-p, frequency penalty, and presence penalty. English and French correction and suggestion prompts can be edited in focused dialogs and restored to their defaults.
+Use **Open settings** in the correction window or **shakespeare settings** in the context menu. The 900-pixel settings window provides the API base URL, optional model and API key, temperature, maximum tokens, top-p, frequency penalty, and presence penalty. English and French correction and suggestion prompts can be edited in focused dialogs and restored to their defaults. The footer shows the installed version and short build commit.
 
 ## Development
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Rebuild continuously during development |
-| `npx biome check .` | Check formatting, lint rules, and import organization |
-| `npx tsc --noEmit` | Type-check without emitting files |
-| `npm run build` | Validate and create `dist/` |
-| `npm run verify` | Validate the built Firefox extension |
-| `npm run package` | Build and create the versioned ZIP archive |
+| `bun run dev` | Rebuild continuously during development |
+| `bunx biome check .` | Check formatting, lint rules, and import organization |
+| `bunx tsc --noEmit` | Type-check without emitting files |
+| `bun run build` | Validate and create `dist/` |
+| `bun run verify` | Validate the built Firefox extension |
+| `bun run package` | Build, verify, and create `artifacts/shakespeare-<version>.zip` |
 
 The main implementation lives in `src/background.ts` for extension orchestration, `src/api.ts` for streaming API transport, `src/config.ts` for defaults and persisted settings, and `src/result.ts`, `src/settings.ts`, and `src/sections.ts` for the correction and settings interfaces.
 
 ## Publish the add-on
 
-Run `npm run package` to validate the extension and create the versioned ZIP archive. Test that archive with the [Add-on Validator](https://addons.mozilla.org/en-US/developers/addon/validate) before submission. Use the [Firefox Add-ons Developer Hub](https://addons.mozilla.org/en-US/developers/) as the main publishing entry point and follow Mozilla's [Submitting an add-on](https://extensionworkshop.com/documentation/publish/submitting-an-add-on/) documentation for the complete submission and review workflow.
+Run `bun run package` to validate the extension and create the versioned ZIP in `artifacts/`. Pushes and pull requests also run validation and packaging automatically; download the ZIP from the workflow artifacts. Test the archive with the [Add-on Validator](https://addons.mozilla.org/en-US/developers/addon/validate) before submission. Use the [Firefox Add-ons Developer Hub](https://addons.mozilla.org/en-US/developers/) as the main publishing entry point and follow Mozilla's [Submitting an add-on](https://extensionworkshop.com/documentation/publish/submitting-an-add-on/) documentation for the complete submission and review workflow.
 
-Keep the versions in `package.json`, `package-lock.json`, and `src/manifest.json` synchronized before packaging. The generated `dist/` directory and versioned ZIP archive are release artifacts and must not be committed.
+Keep the versions in `package.json` and `src/manifest.json` synchronized before packaging, and regenerate `bun.lock` when package metadata or dependencies change. The generated `dist/` and `artifacts/` directories must not be committed.
 
 ## Privacy
 
-The extension does not declare telemetry or data collection. Selected text is sent only to the API base URL configured by the user, and settings are stored locally through Firefox extension storage. Review the configured endpoint before sending sensitive text.
+The extension declares required website-content transmission because selected text is sent to the API base URL configured by the user for processing. It does not include telemetry, and settings are stored locally through Firefox extension storage. Review the configured endpoint before sending sensitive text.
 
 ## Disclaimer
 
