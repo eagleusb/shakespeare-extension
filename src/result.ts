@@ -70,7 +70,7 @@ initSections({
   result: resultEl,
   errorMessage: errorMessageEl,
 });
-initSettings();
+initSettings(settingsMode);
 
 if (settingsMode) {
   loadingEl.style.display = "none";

@@ -14,6 +14,7 @@ import {
 
 declare const __EXTENSION_COMMIT__: string;
 
+const HEALTH_CHECK_INTERVAL_MS = 30_000;
 const apiUrlInput = document.getElementById("api-url") as HTMLInputElement;
 const apiSavedEl = document.getElementById("api-saved")!;
 const healthDotEl = document.getElementById("health-dot")!;
@@ -72,16 +73,38 @@ const promptLanguages: Language[] = ["en", "fr"];
 const promptKinds: PromptKind[] = ["correct", "suggest"];
 let promptOverrides = normalizePromptOverrides(undefined);
 let activePrompt: { language: Language; kind: PromptKind } | null = null;
+let currentApiUrl = API_BASE_URL;
+let healthCheckRunning = false;
+let healthCheckRequested = false;
 
 const LANG_BTNS: Record<Language, HTMLElement> = {
   en: langEnBtn,
   fr: langFrBtn,
 };
 
-async function checkApiHealth(url: string): Promise<void> {
-  const ok = await browser.runtime.sendMessage({ type: "check-health", url });
-  healthDotEl.className = "health-dot";
-  healthDotEl.classList.add(ok ? "ok" : "fail");
+async function checkApiHealth(): Promise<void> {
+  healthCheckRequested = true;
+  if (healthCheckRunning) {
+    return;
+  }
+
+  healthCheckRunning = true;
+  try {
+    while (healthCheckRequested) {
+      healthCheckRequested = false;
+      const url = currentApiUrl;
+      const ok = await browser.runtime
+        .sendMessage({ type: "check-health", url })
+        .catch(() => false);
+      if (url === currentApiUrl) {
+        healthDotEl.className = "health-dot";
+        healthDotEl.classList.add(ok ? "ok" : "fail");
+        healthDotEl.title = `Last checked: ${new Date().toLocaleString()} (${ok ? "reachable" : "unavailable"})`;
+      }
+    }
+  } finally {
+    healthCheckRunning = false;
+  }
 }
 
 function setActiveLang(lang: Language): void {
@@ -183,25 +206,40 @@ async function loadSettings(): Promise<void> {
   const url =
     typeof stored === "string" && stored.length > 0 ? stored : API_BASE_URL;
   apiUrlInput.value = url;
+  currentApiUrl = url;
 
   setApiSettings(normalizeApiSettings(result[STORAGE_KEY_API_SETTINGS]));
   setPromptOverrides(normalizePromptOverrides(result[STORAGE_KEY_PROMPTS]));
 
   const lang = (result[STORAGE_KEY_LANGUAGE] as Language) ?? DEFAULT_LANGUAGE;
   setActiveLang(lang);
-  await checkApiHealth(url);
+  await checkApiHealth();
 }
 
-export function initSettings(): void {
+export function initSettings(settingsMode: boolean): void {
   extensionVersionEl.textContent = `${browser.runtime.getManifest().version} (${__EXTENSION_COMMIT__})`;
   void loadSettings();
+
+  if (settingsMode) {
+    window.setInterval(() => {
+      if (!document.hidden) {
+        void checkApiHealth();
+      }
+    }, HEALTH_CHECK_INTERVAL_MS);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        void checkApiHealth();
+      }
+    });
+  }
 
   apiUrlInput.addEventListener("change", async () => {
     const value = apiUrlInput.value.trim();
     if (value.startsWith("http://") || value.startsWith("https://")) {
       await browser.storage.local.set({ [STORAGE_KEY_API_URL]: value });
+      currentApiUrl = value;
       showSaved();
-      await checkApiHealth(value);
+      await checkApiHealth();
     }
   });
 
