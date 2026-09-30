@@ -42,11 +42,13 @@
 ## Commits
 
 - Use Conventional Commits in the form `type(scope): description`, with an imperative subject of at most 110 characters and no final period.
+- Prefer lowercase commit messages.
 - When committing, split changes by scope and push after all scoped commits.
 
 ## GitHub Actions
 
 - When creating or updating workflows, verify each action's latest release and use that version.
+- Validate GitHub Actions workflows with `actionlint`.
 
 ## Publishing
 
